@@ -1,10 +1,9 @@
 mod chat;
+mod cli;
 mod providers;
-mod repl;
 
 use clap::{Parser, Subcommand};
-use die::die;
-use providers::registry::populated_registry;
+use cli::chat::chat_cmd;
 
 #[derive(Parser)]
 #[command(name = "my-program")]
@@ -25,26 +24,15 @@ enum Commands {
 }
 
 #[derive(Parser, Default)]
-struct ChatArgs {
-    /// Specifies the model to be used for chat
+pub(crate) struct ChatArgs {
+    /// Specifies the model to be used during the chat
     #[arg(short, long)]
     model: Option<String>,
-}
-
-use crate::repl::chat_repl;
-
-async fn handle_chat(args: &ChatArgs) {
-    let mut registry = populated_registry().await;
-
-    let provider = registry.resolve(args.model.as_deref()).await;
-
-    if let Err(err) = provider {
-        die!("Failed to resovle model: {}", err);
-    }
-
-    let spec = provider.unwrap();
-
-    chat_repl(spec.model_id, spec.provider).await;
+    /// Enter interactive mode
+    #[arg(short, long)]
+    interactive: bool,
+    /// Optionally specify the initial prompt
+    prompt: Option<String>,
 }
 
 #[tokio::main]
@@ -52,7 +40,7 @@ async fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Chat(args)) => handle_chat(args).await,
-        None => handle_chat(&ChatArgs::default()).await,
+        Some(Commands::Chat(args)) => chat_cmd(args).await,
+        None => chat_cmd(&ChatArgs::default()).await,
     }
 }

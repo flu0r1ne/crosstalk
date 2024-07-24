@@ -1,7 +1,7 @@
-use reqwest::{Client, IntoUrl, Response, StatusCode};
-use serde::{Deserialize, Serialize};
 use bytes::Bytes;
 use futures_core::Stream;
+use reqwest::{Client, IntoUrl, Response, StatusCode};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::providers::apireq::{

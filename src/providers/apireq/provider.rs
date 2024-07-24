@@ -1,7 +1,9 @@
 //! Conversions between Reqwest API errors and provider error types
 
+use crate::providers::apireq::{
+    error::ErrorKind as ReqwestErrorKind, JsonStreamError, ReqwestError,
+};
 use crate::providers::{Error, ErrorKind};
-use crate::providers::apireq::{JsonStreamError, ReqwestError, error::ErrorKind as ReqwestErrorKind};
 
 impl From<JsonStreamError> for Error {
     fn from(value: JsonStreamError) -> Self {

@@ -22,7 +22,7 @@
 use crate::providers::{
     self,
     providers::{OllamaProvider, OpenAIProvider},
-    Model, ChatProvider, ErrorKind, ProviderIdentifier,
+    ChatProvider, ErrorKind, Model, ProviderIdentifier,
 };
 
 use std::collections::HashMap;

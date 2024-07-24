@@ -3,12 +3,11 @@ use bytes::Bytes;
 use futures_core::Stream;
 use reqwest::IntoUrl;
 
-use crate::providers::{
-    providers::ProviderIdentifier, Model, ChatProvider,
-    ContextManagement, Error, ErrorKind, FinishReason, MessageDelta, Role,
-    Usage, AsyncMessageIterator, Message,
-};
 use super::api;
+use crate::providers::{
+    providers::ProviderIdentifier, AsyncMessageIterator, ChatProvider, ContextManagement, Error,
+    ErrorKind, FinishReason, Message, MessageDelta, Model, Role, Usage,
+};
 
 impl From<api::Role> for Role {
     fn from(value: api::Role) -> Self {
@@ -104,7 +103,7 @@ where
 {
     inner: api::StreamingChatResponse<S>,
     usage: Option<Usage>,
-    finish_reason: Option<FinishReason>
+    finish_reason: Option<FinishReason>,
 }
 
 #[async_trait]
@@ -120,7 +119,7 @@ impl<S: Stream<Item = reqwest::Result<Bytes>> + Unpin + Send> AsyncMessageIterat
                     assert!(!matches!(msg.done_reason, api::DoneReason::None));
 
                     self.finish_reason = Some(msg.done_reason.into());
-                    
+
                     // The "prompt eval count" disappears when cached.
                     // This makes token counting impossible.
                     self.usage = Some(Usage {
@@ -138,9 +137,7 @@ impl<S: Stream<Item = reqwest::Result<Bytes>> + Unpin + Send> AsyncMessageIterat
             }
             Err(err) => Some(Err(err.into())),
         }
-
     }
-
 
     fn finish_reason(&self) -> FinishReason {
         self.finish_reason.unwrap()
@@ -173,11 +170,18 @@ impl ChatProvider for OllamaProvider {
         Ok(models)
     }
 
-    async fn stream_completion(&self, model: &str, messages: &[Message]) -> Result<Box<dyn AsyncMessageIterator>, Error> {
-        let messages: Vec<api::ChatMessage> = messages.iter().map(|m| api::ChatMessage {
-            role: m.role.clone().into(),
-            content: m.content.clone(),
-        }).collect();
+    async fn stream_completion(
+        &self,
+        model: &str,
+        messages: &[Message],
+    ) -> Result<Box<dyn AsyncMessageIterator>, Error> {
+        let messages: Vec<api::ChatMessage> = messages
+            .iter()
+            .map(|m| api::ChatMessage {
+                role: m.role.clone().into(),
+                content: m.content.clone(),
+            })
+            .collect();
 
         let completion = self.api.chat(model, &messages).await?;
 

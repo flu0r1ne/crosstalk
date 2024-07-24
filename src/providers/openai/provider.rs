@@ -6,11 +6,10 @@ use reqwest::IntoUrl;
 use crate::chat::{Message, Role};
 use crate::providers::openai::models::{DEFAULT_MODEL, OPENAI_MODELS};
 use crate::providers::{
-    openai::api, providers::ProviderIdentifier, Model, ChatProvider, Error, ErrorKind,
+    openai::api, providers::ProviderIdentifier, ChatProvider, Error, ErrorKind, Model,
 };
 use crate::providers::{
-    AsyncMessageIterator, ContextManagement, FinishReason,
-    MessageDelta, Usage
+    AsyncMessageIterator, ContextManagement, FinishReason, MessageDelta, Usage,
 };
 
 impl From<api::Error> for Error {
@@ -89,7 +88,7 @@ where
     inner: api::StreamingChatResponse<S>,
     role: Option<Role>,
     finish_reason: Option<FinishReason>,
-    usage: Option<Usage>
+    usage: Option<Usage>,
 }
 
 impl<S: Stream<Item = reqwest::Result<Bytes>> + Unpin + Send> OpenAICompletionResponse<S> {
@@ -126,7 +125,7 @@ impl<S: Stream<Item = reqwest::Result<Bytes>> + Unpin + Send> AsyncMessageIterat
 
                         self.usage = Some(Usage {
                             prompt_tokens: Some(usage.prompt_tokens),
-                            completion_tokens: Some(usage.completion_tokens)
+                            completion_tokens: Some(usage.completion_tokens),
                         });
 
                         None
@@ -196,16 +195,20 @@ impl ChatProvider for OpenAIProvider {
         Ok(OPENAI_MODELS.to_vec())
     }
 
-    async fn stream_completion(&self, model: &str, messages: &[Message]) -> Result<Box<dyn AsyncMessageIterator>, Error> {
-        let messages: Vec<api::ChatMessage> = messages.iter().map(|m| api::ChatMessage {
-            role: m.role.clone().into(),
-            content: m.content.clone()
-        }).collect();
+    async fn stream_completion(
+        &self,
+        model: &str,
+        messages: &[Message],
+    ) -> Result<Box<dyn AsyncMessageIterator>, Error> {
+        let messages: Vec<api::ChatMessage> = messages
+            .iter()
+            .map(|m| api::ChatMessage {
+                role: m.role.clone().into(),
+                content: m.content.clone(),
+            })
+            .collect();
 
-        let iterator = self
-            .api
-            .streaming_chat_completion(model, &messages)
-            .await?;
+        let iterator = self.api.streaming_chat_completion(model, &messages).await?;
 
         Ok(Box::new(OpenAICompletionResponse::new(iterator)))
     }

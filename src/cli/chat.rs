@@ -6,8 +6,8 @@ use std::io::{self, IsTerminal, Read, Write};
 use self::repl::Repl;
 
 use crate::chat::{Message, Role};
-use crate::providers::registry::{populated_registry, ResolvedModelSpec};
-use crate::providers::MessageDelta;
+use crate::providers::{ChatProvider, MessageDelta};
+use crate::registry::populate::{populated_registry, resolve_once};
 use crate::ChatArgs;
 
 pub(crate) struct MessageBuffer {
@@ -81,7 +81,7 @@ pub(crate) async fn chat_cmd(args: &ChatArgs) {
     };
 
     if args.prompt.is_some() && !in_terminal {
-        die!("It appears that an initial prompt is  being provided both through standard input and the prompt argument.");
+        die!("It appears that an initial prompt is being provided both through standard input and the prompt argument.");
     }
 
     // Obtain the initial prompt, either from standard input or from a positional argument.
@@ -98,32 +98,37 @@ pub(crate) async fn chat_cmd(args: &ChatArgs) {
     };
 
     // Resolve the model specified in the "model" argument (or the default).
-    let mut registry = populated_registry().await;
+    let registry = populated_registry().await;
 
-    let resolved_spec = registry
-        .resolve(args.model.as_ref().map(|s| s.as_str()))
-        .await;
+    let resolve_result = resolve_once(&registry, args.model.clone()).await;
 
-    let spec = match resolved_spec {
-        Ok(spec) => spec,
-        Err(err) => die!("Failed to resolve model: {}", err),
+    let (provider, model_id) = match resolve_result {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            die!("failed to resolve model: {}", err);
+        }
     };
 
     // If the output is a terminal (e.g., user-facing), incrementally print it.
     let incremental = out_terminal;
 
-    chat(spec, initial_prompt, interactive, incremental).await;
+    chat(
+        provider,
+        &model_id,
+        initial_prompt,
+        interactive,
+        incremental,
+    )
+    .await;
 }
 
-async fn chat<'m>(
-    spec: ResolvedModelSpec<'m>,
+async fn chat<'p>(
+    provider: &'p Box<dyn ChatProvider>,
+    model_id: &str,
     initial_prompt: Option<String>,
     interactive: bool,
     incremental: bool,
 ) {
-    let model_id = spec.model_id;
-    let provider = spec.provider;
-
     let mut pending_init_prompt = initial_prompt.is_some();
 
     // Add the initial prompt to the internal buffer.

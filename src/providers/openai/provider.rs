@@ -187,8 +187,8 @@ impl ChatProvider for OpenAIProvider {
         ContextManagement::Explicit
     }
 
-    async fn default_model(&self) -> Option<Model> {
-        Some(DEFAULT_MODEL.clone())
+    async fn default_model(&self) -> Result<Option<Model>, Error> {
+        Ok(Some(DEFAULT_MODEL.clone()))
     }
 
     async fn models(&self) -> Result<Vec<Model>, Error> {

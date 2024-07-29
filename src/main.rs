@@ -1,6 +1,7 @@
 mod chat;
 mod cli;
 mod providers;
+mod registry;
 
 use clap::{Parser, Subcommand};
 use cli::chat::chat_cmd;

@@ -8,7 +8,15 @@ use strum_macros;
 ///
 /// The `to_string` and `FromStr` are part of the CLI and should remain stable.
 #[derive(
-    Debug, PartialEq, Eq, Hash, Clone, Copy, strum_macros::Display, strum_macros::EnumString,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    strum_macros::Display,
+    strum_macros::EnumString,
+    strum_macros::EnumIter,
 )]
 #[strum(serialize_all = "lowercase")]
 pub(crate) enum ProviderIdentifier {

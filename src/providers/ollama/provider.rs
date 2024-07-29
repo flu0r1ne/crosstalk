@@ -158,8 +158,8 @@ impl ChatProvider for OllamaProvider {
         ContextManagement::Implicit
     }
 
-    async fn default_model(&self) -> Option<Model> {
-        None
+    async fn default_model(&self) -> Result<Option<Model>, Error> {
+        Ok(None)
     }
 
     async fn models(&self) -> Result<Vec<Model>, Error> {

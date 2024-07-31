@@ -45,15 +45,18 @@ pub(crate) enum ListObject {
     /// Registered models
     Models(ListModelArgs),
     /// Providers
-    Providers
+    Providers,
 }
 
 /// Output formats
-#[derive(Parser, ValueEnum, Default, Clone, Copy, strum_macros::Display, strum_macros::EnumString)]
+#[derive(
+    Parser, ValueEnum, Default, Clone, Copy, strum_macros::Display, strum_macros::EnumString,
+)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum ListingFormat {
     /// Format the output as a table
-    #[default] Table,
+    #[default]
+    Table,
     /// Format the output as JSON
     Json,
     /// Format the output as a table without a header

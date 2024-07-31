@@ -5,8 +5,7 @@ mod table;
 use crate::{
     providers::providers::ProviderIdentifier,
     registry::{populate::populated_registry, registry::Registry},
-    ListArgs,
-    ListObject, ListingFormat,
+    ListArgs, ListObject, ListingFormat,
 };
 
 use die::die;
@@ -21,16 +20,14 @@ impl From<Vec<Model>> for Table {
     fn from(value: Vec<Model>) -> Self {
         let mut tab = Table::new();
 
-        tab.set_header(vec![
-            "MODEL", "CONTEXT"
-        ]);
+        tab.set_header(vec!["MODEL", "CONTEXT"]);
 
         for model in value {
             tab.add_row(vec![
                 model.model_id,
                 match model.context {
                     Some(context) => context.to_string(),
-                    None => "unknown".to_string()
+                    None => "unknown".to_string(),
                 },
             ]);
         }
@@ -50,9 +47,7 @@ impl From<Vec<ProvidedModel>> for Table {
     fn from(value: Vec<ProvidedModel>) -> Self {
         let mut tab = Table::new();
 
-        tab.set_header(vec![
-            "MODEL", "PROVIDER", "CONTEXT"
-        ]);
+        tab.set_header(vec!["MODEL", "PROVIDER", "CONTEXT"]);
 
         for model in value {
             tab.add_row(vec![
@@ -61,7 +56,7 @@ impl From<Vec<ProvidedModel>> for Table {
                 match model.context {
                     Some(context) => context.to_string(),
                     None => "unknown".to_string(),
-                }
+                },
             ]);
         }
 
@@ -79,15 +74,19 @@ impl Into<Table> for Vec<Provider> {
     fn into(self) -> Table {
         let mut tab = Table::new();
 
-        tab.set_header(vec![ "PROVIDER", "ENABLED" ]);
-        
+        tab.set_header(vec!["PROVIDER", "ENABLED"]);
+
         for provider in self {
             tab.add_row(vec![
                 provider.provider.to_string(),
-                if provider.enabled { "enabled".to_string() } else { "disabled".to_string() } 
+                if provider.enabled {
+                    "enabled".to_string()
+                } else {
+                    "disabled".to_string()
+                },
             ]);
         }
-    
+
         tab
     }
 }
@@ -97,7 +96,7 @@ fn get_providers(registry: &Registry) -> Vec<Provider> {
 
     for id in ProviderIdentifier::iter() {
         let provider = registry.provider(id);
-    
+
         providers.push(Provider {
             provider: id,
             enabled: provider.is_some(),
@@ -118,9 +117,9 @@ async fn get_registered_models(registry: &Registry) -> Vec<ProvidedModel> {
                     context: pm.model.context_length,
                 })
                 .collect();
-        
+
             registered_models
-        },
+        }
         Err(err) => {
             die!("failed to list models: {}", err);
         }
@@ -154,23 +153,22 @@ async fn get_models_for_provider(registry: &Registry, id: ProviderIdentifier) ->
 fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingFormat) {
     match format {
         ListingFormat::Json => {
-            let output = serde_json::to_string_pretty(&object)
-                .expect("failed to seralize object");
+            let output = serde_json::to_string_pretty(&object).expect("failed to seralize object");
 
             println!("{}", output);
-        },
+        }
         ListingFormat::Table => {
             let tab = object.into_table();
 
             print!("{}", tab);
-        },
+        }
         ListingFormat::HeaderlessTable => {
             let mut tab = object.into_table();
-            
+
             tab.print_header(false);
 
             print!("{}", tab);
-        },
+        }
     }
 }
 
@@ -188,10 +186,10 @@ pub(crate) async fn list_cmd(args: &ListArgs) {
                 let models = get_registered_models(&registry).await;
                 format_output(models, format);
             }
-        },
+        }
         ListObject::Providers => {
             let providers = get_providers(&registry);
             format_output(providers, format);
-        },
+        }
     }
 }

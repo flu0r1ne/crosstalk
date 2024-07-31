@@ -1,7 +1,5 @@
-use std::borrow::BorrowMut;
 use std::env;
-use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::process::Command;

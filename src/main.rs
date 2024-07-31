@@ -3,9 +3,19 @@ mod cli;
 mod providers;
 mod registry;
 
-use clap::{Parser, Subcommand, ValueEnum};
-use cli::{chat::chat_cmd, list::list_cmd};
+use std::io::{self, IsTerminal};
+
+use clap::{Parser, ValueEnum, Subcommand};
+use cli::{chat::chat_cmd, list::list_cmd, ColorMode};
 use providers::providers::ProviderIdentifier;
+
+#[derive(Parser, Default, Clone, Copy, ValueEnum, strum_macros::Display, strum_macros::EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub(crate) enum RequestedColorMode {
+    #[default] Auto,
+    On,
+    Off,
+}
 
 #[derive(Parser)]
 #[command(name = "crosstalk")]
@@ -17,6 +27,8 @@ use providers::providers::ProviderIdentifier;
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+    #[arg(long, default_value_t = RequestedColorMode::default())]
+    color: RequestedColorMode,
 }
 
 #[derive(Subcommand)]
@@ -73,7 +85,7 @@ pub(crate) struct ListArgs {
     object: ListObject,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Default)]
 pub(crate) struct ListModelArgs {
     /// Limit listing to the specified provider
     #[arg(short, long)]
@@ -84,9 +96,11 @@ pub(crate) struct ListModelArgs {
 async fn main() {
     let cli = Cli::parse();
 
+    let color = ColorMode::resolve_auto(cli.color);
+
     match &cli.command {
         Some(Commands::Chat(args)) => chat_cmd(args).await,
-        Some(Commands::List(args)) => list_cmd(args).await,
+        Some(Commands::List(args)) => list_cmd(color, args).await,
         None => chat_cmd(&ChatArgs::default()).await,
     }
 }

@@ -140,7 +140,11 @@ async fn chat<'p>(
     }
 
     // Only initialize the REPL if  it is really needed.
-    let mut repl = if interactive { Some(Repl::new(None)) } else { None };
+    let mut repl = if interactive {
+        Some(Repl::new(None))
+    } else {
+        None
+    };
 
     let flush_or_die = || {
         std::io::stdout()

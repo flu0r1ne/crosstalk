@@ -1,23 +1,30 @@
-
-use std::os::unix::fs::OpenOptionsExt;
-use std::{env::temp_dir, fs::OpenOptions, path::{PathBuf, Path}};
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 use std::fmt::Write;
 use std::fs::File;
 use std::io::{self, ErrorKind};
+use std::os::unix::fs::OpenOptionsExt;
+use std::{
+    env::temp_dir,
+    fs::OpenOptions,
+    path::{Path, PathBuf},
+};
 
 /// Creates a temporary file in the directory specified by `temp_dir`. The filename
 /// of the temporary file is generated as `base || hex || extension`, where `hex` is
 /// a randomly generated string. The resulting file is only readable by the current user.
 /// The function returns `ErrorKind::AlreadyExists` only after several retries.
-pub(crate) fn create_temp_file(temp_dir: &PathBuf, base: &str, extention: &str) -> std::io::Result<(PathBuf, File)> {
+pub(crate) fn create_temp_file(
+    temp_dir: &PathBuf,
+    base: &str,
+    extention: &str,
+) -> std::io::Result<(PathBuf, File)> {
     const RETRIES: usize = 16;
 
     let mut rng = StdRng::from_entropy();
 
     for _ in 0..RETRIES {
         let mut suffix = [0u8; 32];
-            
+
         rng.fill_bytes(&mut suffix);
 
         let filename = {
@@ -54,10 +61,13 @@ pub(crate) fn create_temp_file(temp_dir: &PathBuf, base: &str, extention: &str) 
             }
         }
     }
-    
+
     Err(io::Error::new(
         ErrorKind::AlreadyExists,
-        format!("failed to create a secure tempfile after {} retries", RETRIES)
+        format!(
+            "failed to create a secure tempfile after {} retries",
+            RETRIES
+        ),
     ))
 }
 
@@ -74,9 +84,13 @@ impl Tempfile {
         Self::new(&temp_dir, base, extention)
     }
 
-    pub(crate) fn new(temp_dir: &PathBuf, base: &str, extention: &str) -> std::io::Result<Tempfile> {
+    pub(crate) fn new(
+        temp_dir: &PathBuf,
+        base: &str,
+        extention: &str,
+    ) -> std::io::Result<Tempfile> {
         let (path, file) = create_temp_file(temp_dir, base, extention)?;
-        
+
         Ok(Tempfile { path, file })
     }
 
@@ -95,7 +109,6 @@ impl Tempfile {
 
 impl Drop for Tempfile {
     fn drop(&mut self) {
-        std::fs::remove_file(&self.path)
-            .expect("failed to remove tempfile")
+        std::fs::remove_file(&self.path).expect("failed to remove tempfile")
     }
 }

@@ -1,5 +1,6 @@
+use nu_ansi_term::Color;
 use strum::IntoEnumIterator;
-use table::{IntoTable, Table};
+use table::{IntoCell, IntoRow, IntoTable, Row, Table};
 mod table;
 
 use crate::{
@@ -7,6 +8,8 @@ use crate::{
     registry::{populate::populated_registry, registry::Registry},
     ListArgs, ListObject, ListingFormat,
 };
+
+use crate::ColorMode;
 
 use die::die;
 
@@ -20,16 +23,16 @@ impl From<Vec<Model>> for Table {
     fn from(value: Vec<Model>) -> Self {
         let mut tab = Table::new();
 
-        tab.set_header(vec!["MODEL", "CONTEXT"]);
+        tab.set_header(standard_header(vec!["MODEL", "CONTEXT"]));
 
         for model in value {
-            tab.add_row(vec![
+            tab.add_row(standard_body(vec![
                 model.model_id,
                 match model.context {
                     Some(context) => context.to_string(),
                     None => "unknown".to_string(),
                 },
-            ]);
+            ]));
         }
 
         tab
@@ -43,21 +46,33 @@ struct ProvidedModel {
     context: Option<u64>,
 }
 
+fn standard_header<R: IntoRow>(v: R) -> Row {
+    let row = v.into_row();
+
+    row.with_style(Color::Green.into())
+}
+
+fn standard_body<R: IntoRow>(v: R) -> Row {
+    let row = v.into_row();
+
+    row.with_style(Color::White.into())
+}
+
 impl From<Vec<ProvidedModel>> for Table {
     fn from(value: Vec<ProvidedModel>) -> Self {
         let mut tab = Table::new();
 
-        tab.set_header(vec!["MODEL", "PROVIDER", "CONTEXT"]);
+        tab.set_header(standard_header(vec!["MODEL", "PROVIDER", "CONTEXT"]));
 
         for model in value {
-            tab.add_row(vec![
+            tab.add_row(standard_body(vec![
                 model.model_id,
                 model.provider.to_string(),
                 match model.context {
                     Some(context) => context.to_string(),
                     None => "unknown".to_string(),
                 },
-            ]);
+            ]));
         }
 
         tab
@@ -74,17 +89,25 @@ impl Into<Table> for Vec<Provider> {
     fn into(self) -> Table {
         let mut tab = Table::new();
 
-        tab.set_header(vec!["PROVIDER", "ENABLED"]);
+        tab.set_header(
+            standard_header(
+                vec!["PROVIDER", "ENABLED"]
+            )
+        );
 
         for provider in self {
-            tab.add_row(vec![
-                provider.provider.to_string(),
-                if provider.enabled {
-                    "enabled".to_string()
-                } else {
-                    "disabled".to_string()
-                },
-            ]);
+            tab.add_row(
+                standard_body(
+                    vec![
+                        provider.provider.to_string(),
+                        if provider.enabled {
+                            "enabled".to_string()
+                        } else {
+                            "disabled".to_string()
+                        },
+                    ]
+                )
+            );
         }
 
         tab
@@ -150,7 +173,7 @@ async fn get_models_for_provider(registry: &Registry, id: ProviderIdentifier) ->
     registered_models
 }
 
-fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingFormat) {
+fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingFormat, color: ColorMode) {
     match format {
         ListingFormat::Json => {
             let output = serde_json::to_string_pretty(&object).expect("failed to seralize object");
@@ -158,12 +181,20 @@ fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingForm
             println!("{}", output);
         }
         ListingFormat::Table => {
-            let tab = object.into_table();
+            let mut tab = object.into_table();
+
+            if matches!(color, ColorMode::Off) {
+                tab.set_color(false);
+            }
 
             print!("{}", tab);
         }
         ListingFormat::HeaderlessTable => {
             let mut tab = object.into_table();
+
+            if matches!(color, ColorMode::Off) {
+                tab.set_color(false);
+            }
 
             tab.print_header(false);
 
@@ -172,7 +203,7 @@ fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingForm
     }
 }
 
-pub(crate) async fn list_cmd(args: &ListArgs) {
+pub(crate) async fn list_cmd(color: ColorMode, args: &ListArgs) {
     let format = args.format;
 
     let registry = populated_registry().await;
@@ -181,15 +212,15 @@ pub(crate) async fn list_cmd(args: &ListArgs) {
         ListObject::Models(args) => {
             if let Some(id) = args.provider {
                 let models = get_models_for_provider(&registry, id).await;
-                format_output(models, format);
+                format_output(models, format, color);
             } else {
                 let models = get_registered_models(&registry).await;
-                format_output(models, format);
+                format_output(models, format, color);
             }
         }
         ListObject::Providers => {
             let providers = get_providers(&registry);
-            format_output(providers, format);
+            format_output(providers, format, color);
         }
     }
 }

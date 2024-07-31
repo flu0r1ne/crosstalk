@@ -1,4 +1,5 @@
 //! Type definitions for chat primitives
+//!
 
 /// The author of a `Message`
 #[derive(Debug, Clone)]

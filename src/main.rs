@@ -25,7 +25,7 @@ pub(crate) enum RequestedColorMode {
 #[command(
     about = "A general-purpose CLI for chat models",
     author = "Alex <alex@al.exander.io>",
-    version = "0.0.1"
+    version = "0.0.0 PRERELEASE"
 )]
 struct Cli {
     #[command(subcommand)]

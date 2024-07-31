@@ -8,7 +8,7 @@ pub(crate) mod list;
 #[derive(Clone, Copy, strum_macros::Display)]
 pub(crate) enum ColorMode {
     On,
-    Off
+    Off,
 }
 
 impl ColorMode {
@@ -20,17 +20,17 @@ impl ColorMode {
     pub(crate) fn resolve_auto(cm: RequestedColorMode) -> ColorMode {
         match cm {
             RequestedColorMode::Auto => {
-                let disable_color = std::env::var_os("NO_COLOR").is_some()
-                    || !io::stdout().is_terminal();
+                let disable_color =
+                    std::env::var_os("NO_COLOR").is_some() || !io::stdout().is_terminal();
 
                 if disable_color {
                     ColorMode::Off
                 } else {
                     ColorMode::On
                 }
-            },
+            }
             RequestedColorMode::On => ColorMode::On,
-            RequestedColorMode::Off => ColorMode::Off
+            RequestedColorMode::Off => ColorMode::Off,
         }
     }
 }

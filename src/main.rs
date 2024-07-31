@@ -5,14 +5,17 @@ mod registry;
 
 use std::io::{self, IsTerminal};
 
-use clap::{Parser, ValueEnum, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use cli::{chat::chat_cmd, list::list_cmd, ColorMode};
 use providers::providers::ProviderIdentifier;
 
-#[derive(Parser, Default, Clone, Copy, ValueEnum, strum_macros::Display, strum_macros::EnumString)]
+#[derive(
+    Parser, Default, Clone, Copy, ValueEnum, strum_macros::Display, strum_macros::EnumString,
+)]
 #[strum(serialize_all = "lowercase")]
 pub(crate) enum RequestedColorMode {
-    #[default] Auto,
+    #[default]
+    Auto,
     On,
     Off,
 }

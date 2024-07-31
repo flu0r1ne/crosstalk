@@ -44,12 +44,9 @@ fn resolve_fallback_editor() -> Option<PathBuf> {
 /// Launches an interactive editor to edit the contents of a file and return the result.
 /// The `editor` parameter specifies the editor to use, `temp_file` represents the
 /// temporary file where initial contents are stored.
-fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile,) -> String {
-
+fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> String {
     // Launch the editor subprocess
-    let status = Command::new(editor.clone())
-        .arg(temp_file.path())
-        .status();
+    let status = Command::new(editor.clone()).arg(temp_file.path()).status();
 
     let status = match status {
         Ok(status) => status,
@@ -61,14 +58,20 @@ fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile,) -> 
     if !status.success() {
         let program = String::from_utf8_lossy(editor.as_os_str().as_bytes());
 
-        die!("The specified editor \"{}\" did not exit successfully.", program);
+        die!(
+            "The specified editor \"{}\" did not exit successfully.",
+            program
+        );
     }
 
     // Read the resulting file into a string
     let mut edited_content = String::new();
     {
         if let Err(err) = temp_file.file_mut().read_to_string(&mut edited_content) {
-            die!("Failed to read in the editor file: {}, was it deleted?", err);
+            die!(
+                "Failed to read in the editor file: {}, was it deleted?",
+                err
+            );
         }
     }
 
@@ -89,8 +92,8 @@ impl Repl {
             DefaultPromptSegment::Empty,
         );
 
-        let tempfile = Tempfile::with_base_and_ext("msg", ".xtalk")
-            .expect("failed to create temporary file");
+        let tempfile =
+            Tempfile::with_base_and_ext("msg", ".xtalk").expect("failed to create temporary file");
 
         let commands = vec!["/edit".into(), "/exit".into(), "/clear".into()];
 
@@ -123,7 +126,7 @@ impl Repl {
 
         keybindings.add_binding(
             KeyModifiers::CONTROL,
-            KeyCode::Char('e'), 
+            KeyCode::Char('e'),
             ReedlineEvent::OpenEditor,
         );
 
@@ -135,8 +138,7 @@ impl Repl {
 
         let edit_mode = Box::new(Emacs::new(keybindings));
 
-        let editor = editor
-            .or_else(|| resolve_fallback_editor());
+        let editor = editor.or_else(|| resolve_fallback_editor());
 
         let line_editor = Reedline::create()
             .with_completer(completer)
@@ -166,7 +168,6 @@ impl Repl {
                     match command.as_str() {
                         "/exit" => break,
                         "/edit" => {
-                            
                             let editor = match self.editor.as_ref() {
                                 Some(editor) => editor,
                                 None => {

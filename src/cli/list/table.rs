@@ -2,39 +2,39 @@
 //!
 //! CLI Tables are presented in docker-form, except with the addition of color
 //! support. Tables are constructed by adding consecutive rows:
-//! 
+//!
 //! ```
 //! let mut tab = Table::new();
-//! 
+//!
 //! tab.set_header(vec!["COL_A", "COL_B"]);
-//! 
+//!
 //! tab.add_row(vec!["A1", "B1"])
-//! 
+//!
 //! print!("{}", tab);
 //! ```
-//! 
+//!
 //! Rows consist of cells. Cells can by styled using `nu_ansi_term` styles. Additionally,
 //! the row contains helper methods for applying style to all cells in a row.
-//! 
+//!
 //! ```
 //! use nu_ansi_term::Color;
-//! 
+//!
 //! let mut tab = Table::new();
-//! 
+//!
 //! let header = vec!["COL_A", "COL_B"].into_row().with_style(Color::White.into());
-//! 
+//!
 //! tab.set_header(header);
-//! 
+//!
 //! tab.add_row(vec![
 //!     "A1".to_string().into_cell().with_style(Color::Blue.into()),
 //!     Cell::new("B1".to_string(), Color::Blue.into())
 //! ]);
-//! 
+//!
 //! print!({}, tab);
 //! ```
 
-use std::fmt::{self, Write};
 use nu_ansi_term::{AnsiGenericString, Style};
+use std::fmt::{self, Write};
 
 pub(crate) struct Cell {
     content: String,
@@ -70,7 +70,10 @@ impl Cell {
 
 impl From<String> for Cell {
     fn from(value: String) -> Self {
-        Cell { content: value, style: Style::default() }
+        Cell {
+            content: value,
+            style: Style::default(),
+        }
     }
 }
 
@@ -105,7 +108,9 @@ impl Row {
 
 impl From<Vec<String>> for Row {
     fn from(value: Vec<String>) -> Self {
-        Row { cells: value.into_iter().map(|v| v.into()).collect() }
+        Row {
+            cells: value.into_iter().map(|v| v.into()).collect(),
+        }
     }
 }
 
@@ -228,19 +233,20 @@ impl fmt::Display for Table {
 
         let mut print_row = |row: &Row| -> std::fmt::Result {
             for (i, cell) in row.cells.iter().enumerate() {
-
                 if self.color {
- 
                     // Rust formatting does not handle terminal escape sequence,
                     // necessitating manual right-padding
-                    f.write_fmt(format_args!("{}", cell.paint() ))?;
+                    f.write_fmt(format_args!("{}", cell.paint()))?;
 
                     for _ in 0..(widths[i] - cell.len()) {
                         f.write_char(' ')?;
                     }
-                   
                 } else {
-                    f.write_fmt(format_args!("{:<width$}", cell.content(), width = widths[i]))?;
+                    f.write_fmt(format_args!(
+                        "{:<width$}",
+                        cell.content(),
+                        width = widths[i]
+                    ))?;
                 }
 
                 if i != row.cells.len() - 1 {
@@ -317,18 +323,26 @@ mod tests {
         let mut tab = Table::new();
         tab.set_color(true); // Enable color
 
-        let header = vec!["COL_A", "COL_B"].into_row().with_style(Color::White.normal());
+        let header = vec!["COL_A", "COL_B"]
+            .into_row()
+            .with_style(Color::White.normal());
         tab.set_header(header);
 
         tab.add_row(vec![
-            "A1".to_string().into_cell().with_style(Color::Blue.normal()),
-            Cell::new("B1".to_string(), Color::Blue.normal())
+            "A1".to_string()
+                .into_cell()
+                .with_style(Color::Blue.normal()),
+            Cell::new("B1".to_string(), Color::Blue.normal()),
         ]);
 
-        let styled_expected = Color::White.paint("COL_A").to_string() +
-                              "  " + &Color::White.paint("COL_B").to_string() + "\n" +
-                              &Color::Blue.paint("A1").to_string() + "     " +
-                              &Color::Blue.paint("B1").to_string() + "   \n";
+        let styled_expected = Color::White.paint("COL_A").to_string()
+            + "  "
+            + &Color::White.paint("COL_B").to_string()
+            + "\n"
+            + &Color::Blue.paint("A1").to_string()
+            + "     "
+            + &Color::Blue.paint("B1").to_string()
+            + "   \n";
         assert_eq!(format!("{}", tab), styled_expected);
     }
 
@@ -337,12 +351,16 @@ mod tests {
         let mut tab = Table::new();
         tab.set_color(false); // Disable color
 
-        let header = vec!["COL_A", "COL_B"].into_row().with_style(Color::White.normal());
+        let header = vec!["COL_A", "COL_B"]
+            .into_row()
+            .with_style(Color::White.normal());
         tab.set_header(header);
 
         tab.add_row(vec![
-            "A1".to_string().into_cell().with_style(Color::Blue.normal()),
-            Cell::new("B1".to_string(), Color::Blue.normal())
+            "A1".to_string()
+                .into_cell()
+                .with_style(Color::Blue.normal()),
+            Cell::new("B1".to_string(), Color::Blue.normal()),
         ]);
 
         let expected = "COL_A  COL_B\nA1     B1   \n";
@@ -363,7 +381,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Table header is not awk safe. One of the cells contains a whitespace character or is empty.")]
+    #[should_panic(
+        expected = "Table header is not awk safe. One of the cells contains a whitespace character or is empty."
+    )]
     fn test_non_awk_safe_header() {
         let mut tab = Table::new();
 

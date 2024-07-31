@@ -89,25 +89,17 @@ impl Into<Table> for Vec<Provider> {
     fn into(self) -> Table {
         let mut tab = Table::new();
 
-        tab.set_header(
-            standard_header(
-                vec!["PROVIDER", "ENABLED"]
-            )
-        );
+        tab.set_header(standard_header(vec!["PROVIDER", "ENABLED"]));
 
         for provider in self {
-            tab.add_row(
-                standard_body(
-                    vec![
-                        provider.provider.to_string(),
-                        if provider.enabled {
-                            "enabled".to_string()
-                        } else {
-                            "disabled".to_string()
-                        },
-                    ]
-                )
-            );
+            tab.add_row(standard_body(vec![
+                provider.provider.to_string(),
+                if provider.enabled {
+                    "enabled".to_string()
+                } else {
+                    "disabled".to_string()
+                },
+            ]));
         }
 
         tab
@@ -173,7 +165,11 @@ async fn get_models_for_provider(registry: &Registry, id: ProviderIdentifier) ->
     registered_models
 }
 
-fn format_output<O: IntoTable + serde::Serialize>(object: O, format: ListingFormat, color: ColorMode) {
+fn format_output<O: IntoTable + serde::Serialize>(
+    object: O,
+    format: ListingFormat,
+    color: ColorMode,
+) {
     match format {
         ListingFormat::Json => {
             let output = serde_json::to_string_pretty(&object).expect("failed to seralize object");

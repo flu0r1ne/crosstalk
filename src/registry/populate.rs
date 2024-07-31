@@ -37,6 +37,7 @@ pub(crate) async fn populated_registry() -> Registry {
     registry
 }
 
+/// Resolve a single model
 pub(crate) async fn resolve_once<'r>(
     registry: &'r Registry,
     raw_spec: Option<String>,

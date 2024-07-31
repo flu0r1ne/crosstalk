@@ -1,5 +1,5 @@
 //! TODO: This needs to be updated.
-//! 
+//!
 //! The registry handles provider and model resolution. It is a database populated
 //! with the available providers and models. Only models which are enabled are inserted into
 //! the registry. When the user chooses a model, it is specified using a "model spec".

@@ -20,7 +20,7 @@ use strum_macros;
     serde::Serialize,
 )]
 #[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")] 
+#[serde(rename_all = "lowercase")]
 pub(crate) enum ProviderIdentifier {
     Ollama,
     OpenAI,

@@ -1,5 +1,4 @@
-use core::{fmt, num};
-use std::{fmt::Write, path::Display};
+use std::fmt::{self, Write};
 
 pub(crate) struct Row {
     cells: Vec<String>,
@@ -37,10 +36,7 @@ impl From<Vec<String>> for Row {
 
 impl From<Vec<&str>> for Row {
     fn from(value: Vec<&str>) -> Self {
-        let value: Vec<String> = value
-            .into_iter()
-            .map(|s| s.to_owned())
-            .collect();
+        let value: Vec<String> = value.into_iter().map(|s| s.to_owned()).collect();
 
         value.into()
     }
@@ -68,7 +64,10 @@ impl Table {
             if *prev_num_columns == num_columns {
                 return;
             }
-            panic!("Table has {} columns but a with {} columns was inserted", prev_num_columns, num_columns);
+            panic!(
+                "Table has {} columns but a with {} columns was inserted",
+                prev_num_columns, num_columns
+            );
         } else {
             let _ = self.num_columns.insert(num_columns);
         }
@@ -94,13 +93,12 @@ impl Table {
         if !header.is_awk_safe() {
             panic!("Table header is not awk safe, contains whitespace")
         }
-        
+
         self.header.replace(header);
     }
 
     fn iter_rows(&self) -> impl Iterator<Item = &Row> {
-        self.header.iter()
-            .chain(self.body.iter())
+        self.header.iter().chain(self.body.iter())
     }
 
     fn column_widths(&self) -> Vec<usize> {
@@ -108,7 +106,7 @@ impl Table {
             Some(n_cols) => n_cols,
             None => return Vec::new(),
         };
-        
+
         let mut widths = vec![0usize; n_cols];
 
         for row in self.iter_rows() {
@@ -119,7 +117,6 @@ impl Table {
 
         widths
     }
-
 }
 
 impl fmt::Display for Table {
@@ -128,8 +125,8 @@ impl fmt::Display for Table {
 
         let mut print_row = |row: &Row| -> std::fmt::Result {
             for (i, cell) in row.cells.iter().enumerate() {
-                f.write_fmt(format_args!("{:<width$}", cell, width=widths[i]))?;
-            
+                f.write_fmt(format_args!("{:<width$}", cell, width = widths[i]))?;
+
                 if i != row.cells.len() - 1 {
                     f.write_str("  ")?;
                 }
@@ -145,7 +142,7 @@ impl fmt::Display for Table {
                 for row in self.iter_rows() {
                     print_row(row)?;
                 }
-            },
+            }
             false => {
                 for row in self.body.iter() {
                     print_row(row)?;

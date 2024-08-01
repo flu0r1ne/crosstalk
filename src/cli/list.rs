@@ -199,10 +199,8 @@ fn format_output<O: IntoTable + serde::Serialize>(
     }
 }
 
-pub(crate) async fn list_cmd(color: ColorMode, args: &ListArgs) {
+pub(crate) async fn list_cmd(color: ColorMode, registry: Registry, args: &ListArgs) {
     let format = args.format;
-
-    let registry = populated_registry().await;
 
     match &args.object {
         ListObject::Models(args) => {

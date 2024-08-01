@@ -3,12 +3,14 @@ mod tempfile;
 
 use die::die;
 use std::io::{self, IsTerminal, Read, Write};
+use std::path::PathBuf;
 
 use self::repl::Repl;
 
 use crate::chat::{Message, Role};
 use crate::providers::{ChatProvider, MessageDelta};
 use crate::registry::populate::{populated_registry, resolve_once};
+use crate::registry::registry::Registry;
 use crate::ChatArgs;
 
 pub(crate) struct MessageBuffer {
@@ -69,7 +71,7 @@ impl TryFrom<MessageBuilder> for Message {
     }
 }
 
-pub(crate) async fn chat_cmd(args: &ChatArgs) {
+pub(crate) async fn chat_cmd(editor: Option<PathBuf>, registry: Registry, args: &ChatArgs) {
     let in_terminal = io::stdin().is_terminal();
     let out_terminal = io::stdout().is_terminal();
 
@@ -98,9 +100,6 @@ pub(crate) async fn chat_cmd(args: &ChatArgs) {
         None
     };
 
-    // Resolve the model specified in the "model" argument (or the default).
-    let registry = populated_registry().await;
-
     let resolve_result = resolve_once(&registry, args.model.clone()).await;
 
     let (provider, model_id) = match resolve_result {
@@ -114,6 +113,7 @@ pub(crate) async fn chat_cmd(args: &ChatArgs) {
     let incremental = out_terminal;
 
     chat(
+        editor,
         provider,
         &model_id,
         initial_prompt,
@@ -124,6 +124,7 @@ pub(crate) async fn chat_cmd(args: &ChatArgs) {
 }
 
 async fn chat<'p>(
+    editor: Option<PathBuf>,
     provider: &'p Box<dyn ChatProvider>,
     model_id: &str,
     initial_prompt: Option<String>,
@@ -141,7 +142,7 @@ async fn chat<'p>(
 
     // Only initialize the REPL if  it is really needed.
     let mut repl = if interactive {
-        Some(Repl::new(None))
+        Some(Repl::new(editor))
     } else {
         None
     };

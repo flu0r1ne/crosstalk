@@ -2,6 +2,7 @@ use super::default_priority::default_priority;
 
 use crate::providers::{self, providers::ProviderIdentifier, ChatProvider, Model};
 use std::collections::HashMap;
+use std::default;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use thiserror::Error;
@@ -107,6 +108,7 @@ impl ModelSpec {
 struct ProviderEntry {
     provider: Option<Box<dyn ChatProvider>>,
     priority: u8,
+    default_model: Option<String>,
 }
 
 pub(crate) struct Registry {
@@ -120,7 +122,7 @@ pub(crate) struct ProvidedModel {
 
 pub(crate) struct ProvidedDefaultModel {
     pub provider: ProviderIdentifier,
-    pub default: Option<Model>,
+    pub default_model_id: Option<String>,
 }
 
 impl From<ProvidedModel> for ModelSpec {
@@ -140,6 +142,7 @@ impl Registry {
                 ProviderEntry {
                     provider: None,
                     priority: default_priority(id),
+                    default_model: None,
                 },
             )
         });
@@ -149,7 +152,12 @@ impl Registry {
         }
     }
 
-    pub(crate) fn add_provider(&mut self, provider: Box<dyn ChatProvider>, priority: Option<u8>) {
+    pub(crate) fn add_provider(
+        &mut self,
+        provider: Box<dyn ChatProvider>,
+        priority: Option<u8>,
+        default_model: Option<String>,
+    ) {
         let id = provider.id();
 
         let entry = self.providers.get_mut(&id).unwrap();
@@ -163,6 +171,8 @@ impl Registry {
         if let Some(priority) = priority {
             entry.priority = priority;
         }
+
+        entry.default_model = default_model;
     }
 
     pub(crate) fn provider(&self, id: ProviderIdentifier) -> Option<&Box<dyn ChatProvider>> {
@@ -211,14 +221,26 @@ impl Registry {
         let mut models = Vec::new();
 
         for id in ProviderIdentifier::iter() {
-            let provider = match self.provider(id) {
+            let ProviderEntry {
+                provider,
+                priority: _,
+                default_model,
+            } = self.providers.get(&id).unwrap();
+
+            let provider = match provider {
                 Some(provider) => provider,
                 None => continue,
             };
 
+            let default_model = if default_model.is_none() {
+                provider.default_model().await?.map(|model| model.id)
+            } else {
+                default_model.clone()
+            };
+
             models.push(ProvidedDefaultModel {
                 provider: id,
-                default: provider.default_model().await?,
+                default_model_id: default_model,
             });
         }
 
@@ -256,10 +278,10 @@ impl ModelResolver {
 
         for ProvidedDefaultModel {
             provider: id,
-            default,
+            default_model_id,
         } in registry.default_models().await?
         {
-            let default = match default {
+            let default = match default_model_id {
                 Some(default) => default,
                 None => continue,
             };
@@ -270,7 +292,7 @@ impl ModelResolver {
                 }
             }
 
-            resolver.default_model = Some((default.id, id));
+            resolver.default_model = Some((default, id));
         }
 
         Ok(resolver)

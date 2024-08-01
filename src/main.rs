@@ -1,13 +1,16 @@
 mod chat;
 mod cli;
+mod config;
 mod providers;
 mod registry;
 
-use std::io::{self, IsTerminal};
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use cli::{chat::chat_cmd, list::list_cmd, ColorMode};
+use config::read_config;
 use providers::providers::ProviderIdentifier;
+use registry::populate::populated_registry;
 
 #[derive(
     Parser, Default, Clone, Copy, ValueEnum, strum_macros::Display, strum_macros::EnumString,
@@ -28,10 +31,12 @@ pub(crate) enum RequestedColorMode {
     version = "0.0.0 PRERELEASE"
 )]
 struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
     #[arg(long, default_value_t = RequestedColorMode::default())]
     color: RequestedColorMode,
+    #[arg(long)]
+    config: Option<PathBuf>,
+    #[command(subcommand)]
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -101,9 +106,15 @@ async fn main() {
 
     let color = ColorMode::resolve_auto(cli.color);
 
+    let config = read_config(cli.config);
+
+    let registry = populated_registry(&config).await;
+
+    let editor: Option<PathBuf> = config.editor.map(|s| s.into());
+
     match &cli.command {
-        Some(Commands::Chat(args)) => chat_cmd(args).await,
-        Some(Commands::List(args)) => list_cmd(color, args).await,
-        None => chat_cmd(&ChatArgs::default()).await,
+        Some(Commands::Chat(args)) => chat_cmd(editor, registry, args).await,
+        Some(Commands::List(args)) => list_cmd(color, registry, args).await,
+        None => chat_cmd(editor, registry, &ChatArgs::default()).await,
     }
 }

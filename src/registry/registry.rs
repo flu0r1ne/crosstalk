@@ -16,8 +16,8 @@ pub(crate) enum Error {
     #[error("provider \"{0}\" not found")]
     ProviderNotFound(String),
     /// The provider is not in the registry
-    #[error("provider \"{0}\" not enabled")]
-    ProviderNotEnabled(String),
+    #[error("provider \"{0}\" not activated")]
+    ProviderNotActivated(String),
     /// None of the providers in the registry provide a default model
     #[error("there is no default model")]
     NoDefaultModel,
@@ -181,13 +181,13 @@ impl Registry {
         ent.provider.as_ref()
     }
 
-    pub(crate) fn enabled_provider(
+    pub(crate) fn active_provider(
         &self,
         id: ProviderIdentifier,
     ) -> Result<&Box<dyn ChatProvider>, Error> {
         match self.provider(id) {
             Some(provider) => Ok(provider),
-            None => Err(Error::ProviderNotEnabled(id.to_string())),
+            None => Err(Error::ProviderNotActivated(id.to_string())),
         }
     }
 

@@ -1,5 +1,5 @@
 //! The registry handles provider and model resolution. It is a database populated
-//! with the available providers. Providers that are enabled are inserted into
+//! with the available providers. Providers that are activated are inserted into
 //! the registry. The registry provides methods for querying all available providers.
 //!
 //! One important aspect of the registry is building a model resolver. When the user

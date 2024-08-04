@@ -3,7 +3,7 @@ use std::env::VarError;
 use die::die;
 
 use super::registry::{Error, ModelResolver, ModelSpec, Registry};
-use crate::config::{Config, RequestedProviderEnabled};
+use crate::config::{Config, RequestedProviderActivation};
 use crate::providers::providers::{OllamaProvider, OpenAIProvider};
 use crate::providers::{ChatProvider, ErrorKind};
 
@@ -43,8 +43,8 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
     {
         let ollama = &config.providers.ollama;
 
-        let provider = match ollama.enabled {
-            RequestedProviderEnabled::Auto | RequestedProviderEnabled::Yes => {
+        let provider = match ollama.activate {
+            RequestedProviderActivation::Auto | RequestedProviderActivation::Yes => {
                 if let Some(api_base) = &ollama.api_base {
                     match OllamaProvider::with_api_base(api_base) {
                         Ok(ollama) => Some(ollama),
@@ -54,11 +54,11 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
                     Some(OllamaProvider::new())
                 }
             }
-            RequestedProviderEnabled::No => None,
+            RequestedProviderActivation::No => None,
         };
 
-        match (provider, ollama.enabled) {
-            (Some(provider), RequestedProviderEnabled::Auto)
+        match (provider, ollama.activate) {
+            (Some(provider), RequestedProviderActivation::Auto)
                 if ollama_is_awake(&provider).await =>
             {
                 registry.add_provider(
@@ -67,7 +67,7 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
                     ollama.default_model.clone(),
                 );
             }
-            (Some(provider), RequestedProviderEnabled::Yes) => {
+            (Some(provider), RequestedProviderActivation::Yes) => {
                 registry.add_provider(
                     Box::new(provider),
                     ollama.priority,
@@ -90,22 +90,22 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
             None
         };
 
-        let enabled = match openai.enabled {
-            RequestedProviderEnabled::Auto => {
-                // Enable if API key is present
+        let activated = match openai.activate {
+            RequestedProviderActivation::Auto => {
+                // Activate if API key is present
                 api_key
             }
-            RequestedProviderEnabled::Yes => {
+            RequestedProviderActivation::Yes => {
                 if api_key.is_none() {
-                    die::die!("the \"openai\" provider is enabled but the API key is not defined, either add it to the config or define {}", OPENAI_ENV_KEY_VAR);
+                    die::die!("the \"openai\" provider is activated but the API key is not defined, either add it to the config or define {}", OPENAI_ENV_KEY_VAR);
                 }
 
                 api_key
             }
-            RequestedProviderEnabled::No => None,
+            RequestedProviderActivation::No => None,
         };
 
-        if let Some(api_key) = enabled {
+        if let Some(api_key) = activated {
             let provider = Box::new(OpenAIProvider::with_api_key(&api_key));
 
             registry.add_provider(provider, openai.priority, openai.default_model.clone());
@@ -132,7 +132,7 @@ pub(crate) async fn resolve_once<'r>(
 
     let (id, model) = spec.unwrap_provider_model_ids();
 
-    let provider = registry.enabled_provider(id)?;
+    let provider = registry.active_provider(id)?;
 
     Ok((provider, model))
 }

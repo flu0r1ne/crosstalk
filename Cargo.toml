@@ -1,6 +1,6 @@
 [package]
-name = "crosstalk"
-version = "0.1.0"
+name = "xtalk"
+version = "0.0.1-alpha.1"
 edition = "2021"
 
 [dependencies]

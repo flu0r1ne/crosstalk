@@ -2,9 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use toml;
 
+// TODO: Rename "ActivationPolicy"
+// Auto
+// Disable
+// Enable
 #[derive(Deserialize, Serialize, Default, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum RequestedProviderEnabled {
+pub(crate) enum RequestedProviderActivation {
     #[default]
     Auto,
     Yes,
@@ -13,7 +17,8 @@ pub(crate) enum RequestedProviderEnabled {
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Ollama {
-    pub enabled: RequestedProviderEnabled,
+    #[serde(default)]
+    pub activate: RequestedProviderActivation,
     pub default_model: Option<String>,
     pub api_base: Option<String>,
     pub priority: Option<u8>,
@@ -21,7 +26,8 @@ pub(crate) struct Ollama {
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct OpenAI {
-    pub enabled: RequestedProviderEnabled,
+    #[serde(default)]
+    pub activate: RequestedProviderActivation,
     pub default_model: Option<String>,
     pub api_key: Option<String>,
     pub priority: Option<u8>,
@@ -37,7 +43,9 @@ pub(crate) struct Providers {
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Config {
+    /// This specifies the editor command used when launching an external editor.
     pub editor: Option<String>,
+    pub default_model: Option<String>,
     #[serde(default)]
     pub providers: Providers,
 }
@@ -48,7 +56,7 @@ fn get_config_path() -> Option<PathBuf> {
     if let Some(home) = home {
         let home = PathBuf::from(home);
 
-        const USER_PATHS: [&str; 2] = [".config/crosstalk/config.toml", ".crosstalk.toml"];
+        const USER_PATHS: [&str; 2] = [".config/xtalk/config.toml", ".xtalk.toml"];
 
         for &path in USER_PATHS.iter() {
             let fullpath = home.join(path);
@@ -59,7 +67,7 @@ fn get_config_path() -> Option<PathBuf> {
         }
     }
 
-    let system_config = PathBuf::from("/etc/crosstalk.toml");
+    let system_config = PathBuf::from("/etc/xtalk.toml");
 
     if system_config.exists() {
         Some(system_config)

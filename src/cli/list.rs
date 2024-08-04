@@ -82,22 +82,24 @@ impl From<Vec<ProvidedModel>> for Table {
 #[derive(serde::Serialize)]
 struct Provider {
     provider: ProviderIdentifier,
-    enabled: bool,
+    priority: u8,
+    activated: bool,
 }
 
 impl Into<Table> for Vec<Provider> {
     fn into(self) -> Table {
         let mut tab = Table::new();
 
-        tab.set_header(standard_header(vec!["PROVIDER", "ENABLED"]));
+        tab.set_header(standard_header(vec!["PROVIDER", "PRIORITY", "ACTIVATED"]));
 
         for provider in self {
             tab.add_row(standard_body(vec![
                 provider.provider.to_string(),
-                if provider.enabled {
-                    "enabled".to_string()
+                provider.priority.to_string(),
+                if provider.activated {
+                    "yes".to_string()
                 } else {
-                    "disabled".to_string()
+                    "no".to_string()
                 },
             ]));
         }
@@ -112,9 +114,12 @@ fn get_providers(registry: &Registry) -> Vec<Provider> {
     for id in ProviderIdentifier::iter() {
         let provider = registry.provider(id);
 
+        let priority = registry.priority(id);
+
         providers.push(Provider {
             provider: id,
-            enabled: provider.is_some(),
+            priority,
+            activated: provider.is_some(),
         });
     }
 
@@ -145,7 +150,10 @@ async fn get_models_for_provider(registry: &Registry, id: ProviderIdentifier) ->
     let provider = match registry.provider(id) {
         Some(provider) => provider,
         None => {
-            die!("failed to list models: provider \"{0}\" is not enabled", id);
+            die!(
+                "failed to list models: provider \"{0}\" is not activated",
+                id
+            );
         }
     };
 

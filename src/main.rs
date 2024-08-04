@@ -28,7 +28,7 @@ pub(crate) enum RequestedColorMode {
 #[command(
     about = "A general-purpose CLI for chat models",
     author = "Alex <alex@al.exander.io>",
-    version = "0.0.0 PRERELEASE"
+    version = "0.0.1-alpha.0"
 )]
 struct Cli {
     #[arg(long, default_value_t = RequestedColorMode::default())]
@@ -113,8 +113,8 @@ async fn main() {
     let editor: Option<PathBuf> = config.editor.map(|s| s.into());
 
     match &cli.command {
-        Some(Commands::Chat(args)) => chat_cmd(editor, registry, args).await,
+        Some(Commands::Chat(args)) => chat_cmd(editor, config.default_model, registry, args).await,
         Some(Commands::List(args)) => list_cmd(color, registry, args).await,
-        None => chat_cmd(editor, registry, &ChatArgs::default()).await,
+        None => chat_cmd(editor, config.default_model, registry, &ChatArgs::default()).await,
     }
 }

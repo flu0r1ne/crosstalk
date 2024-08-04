@@ -9,7 +9,7 @@ use self::repl::Repl;
 
 use crate::chat::{Message, Role};
 use crate::providers::{ChatProvider, MessageDelta};
-use crate::registry::populate::{populated_registry, resolve_once};
+use crate::registry::populate::resolve_once;
 use crate::registry::registry::Registry;
 use crate::ChatArgs;
 
@@ -71,7 +71,12 @@ impl TryFrom<MessageBuilder> for Message {
     }
 }
 
-pub(crate) async fn chat_cmd(editor: Option<PathBuf>, registry: Registry, args: &ChatArgs) {
+pub(crate) async fn chat_cmd(
+    editor: Option<PathBuf>,
+    default_model: Option<String>,
+    registry: Registry,
+    args: &ChatArgs,
+) {
     let in_terminal = io::stdin().is_terminal();
     let out_terminal = io::stdout().is_terminal();
 
@@ -100,7 +105,9 @@ pub(crate) async fn chat_cmd(editor: Option<PathBuf>, registry: Registry, args: 
         None
     };
 
-    let resolve_result = resolve_once(&registry, args.model.clone()).await;
+    let model = args.model.clone().or_else(|| default_model);
+
+    let resolve_result = resolve_once(&registry, model).await;
 
     let (provider, model_id) = match resolve_result {
         Ok(resolved) => resolved,

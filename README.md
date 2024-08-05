@@ -23,7 +23,13 @@ Current features include:
 Installation
 ------------
 
-Currently, `xtalk` can only be built from source and specifically supports Linux. This section will be updated when it is listed on [crates.io](https://www.crates.io).
+The `xtalk` alpha release only supports Linux.
+
+## Installing with Cargo
+
+```
+cargo install xtalk@0.0.1-alpha.0
+```
 
 ### Building From Source
 

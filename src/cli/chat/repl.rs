@@ -1,5 +1,5 @@
 use std::env;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::process::Command;
@@ -45,13 +45,24 @@ fn resolve_fallback_editor() -> Option<PathBuf> {
 /// The `editor` parameter specifies the editor to use, `temp_file` represents the
 /// temporary file where initial contents are stored.
 fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> String {
+    // Remove the previous contents of the file
+    {
+        if let Err(err) = temp_file.file_mut().set_len(0) {
+            die!("failed to truncate the editor file: {}", err);
+        }
+
+        if let Err(err) = temp_file.file_mut().seek(SeekFrom::Start(0)) {
+            die!("failed to reset file cursor: {}", err);
+        }   
+    }
+    
     // Launch the editor subprocess
     let status = Command::new(editor.clone()).arg(temp_file.path()).status();
 
     let status = match status {
         Ok(status) => status,
         Err(err) => {
-            die!("Failed to launch editor: {}", err);
+            die!("failed to launch editor: {}", err);
         }
     };
 
@@ -59,7 +70,7 @@ fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> S
         let program = String::from_utf8_lossy(editor.as_os_str().as_bytes());
 
         die!(
-            "The specified editor \"{}\" did not exit successfully.",
+            "the specified editor \"{}\" did not exit successfully.",
             program
         );
     }
@@ -69,7 +80,7 @@ fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> S
     {
         if let Err(err) = temp_file.file_mut().read_to_string(&mut edited_content) {
             die!(
-                "Failed to read in the editor file: {}, was it deleted?",
+                "failed to read in the editor file: {}, was it deleted?",
                 err
             );
         }

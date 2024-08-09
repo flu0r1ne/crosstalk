@@ -10,17 +10,17 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub(crate) enum Error {
     /// No providers serve the model identifier
-    #[error("model \"{0}\" not found")]
+    #[error("model \"{0}\" is not served by any of the available providers")]
     ModelNotFound(String),
     /// The model spec contains an unknown provider.
-    #[error("provider \"{0}\" not found")]
+    #[error("provider \"{0}\" does not exist")]
     ProviderNotFound(String),
     /// The provider is not in the registry
-    #[error("provider \"{0}\" not activated")]
+    #[error("provider \"{0}\" is not activate")]
     ProviderNotActivated(String),
     /// None of the providers in the registry provide a default model
-    #[error("there is no default model")]
-    NoDefaultModel,
+    #[error("none of the available providers provide a default model")]
+    DefaultModelUnset,
     /// Failed to list the models from one of the providers in the registry
     #[error("failed to obtain models from provider: \"{0}\"")]
     ModelListingFailed(
@@ -175,6 +175,16 @@ impl Registry {
         entry.default_model = default_model;
     }
 
+    pub(crate) fn empty(&self) -> bool {
+        for (_, ent) in self.providers.iter() {
+            if ent.provider.is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub(crate) fn provider(&self, id: ProviderIdentifier) -> Option<&Box<dyn ChatProvider>> {
         let ent = self.providers.get(&id).unwrap();
 
@@ -306,7 +316,7 @@ impl ModelResolver {
             },
             None => match &self.default_model {
                 Some((model_id, id)) => Ok(ModelSpec::resolved(*id, model_id.clone())),
-                None => Err(Error::NoDefaultModel),
+                None => Err(Error::DefaultModelUnset),
             },
         }
     }

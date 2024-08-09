@@ -1,24 +1,22 @@
+use crate::die;
+use crate::warn;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use toml;
 
-// TODO: Rename "ActivationPolicy"
-// Auto
-// Disable
-// Enable
 #[derive(Deserialize, Serialize, Default, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum RequestedProviderActivation {
+pub(crate) enum ProviderActivationPolicy {
     #[default]
     Auto,
-    Yes,
-    No,
+    Enabled,
+    Disabled,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Ollama {
     #[serde(default)]
-    pub activate: RequestedProviderActivation,
+    pub activate: ProviderActivationPolicy,
     pub default_model: Option<String>,
     pub api_base: Option<String>,
     pub priority: Option<u8>,
@@ -27,7 +25,7 @@ pub(crate) struct Ollama {
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct OpenAI {
     #[serde(default)]
-    pub activate: RequestedProviderActivation,
+    pub activate: ProviderActivationPolicy,
     pub default_model: Option<String>,
     pub api_key: Option<String>,
     pub priority: Option<u8>,
@@ -81,7 +79,7 @@ fn parse_config_or_die<'de, S: serde::de::DeserializeOwned>(config: &str) -> S {
 
     match r {
         Ok(s) => s,
-        Err(err) => die::die!("failed to parse config: {}", err),
+        Err(err) => die!("failed to parse config: {}", err),
     }
 }
 
@@ -108,8 +106,8 @@ fn warn_on_extra_fields_helper<'a>(
         } else {
             let path: Vec<&str> = path.iter().map(|&s| s.as_str()).collect();
 
-            eprintln!(
-                "warning: config contains extraneous key \"{}\", ignoring",
+            warn!(
+                "config contains extraneous key \"{}\", ignoring",
                 path.join(".")
             );
         }

@@ -1,17 +1,16 @@
 use nu_ansi_term::Color;
 use strum::IntoEnumIterator;
-use table::{IntoCell, IntoRow, IntoTable, Row, Table};
+use table::{IntoRow, IntoTable, Row, Table};
 mod table;
 
 use crate::{
-    providers::providers::ProviderIdentifier,
-    registry::{populate::populated_registry, registry::Registry},
-    ListArgs, ListObject, ListingFormat,
+    providers::providers::ProviderIdentifier, registry::registry::Registry, ListArgs, ListObject,
+    ListingFormat,
 };
 
 use crate::ColorMode;
 
-use die::die;
+use crate::die;
 
 #[derive(serde::Serialize)]
 struct Model {

@@ -1,7 +1,8 @@
 mod repl;
 mod tempfile;
 
-use die::die;
+use crate::die;
+
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::PathBuf;
 
@@ -10,7 +11,7 @@ use self::repl::Repl;
 use crate::chat::{Message, Role};
 use crate::providers::{ChatProvider, MessageDelta};
 use crate::registry::populate::resolve_once;
-use crate::registry::registry::Registry;
+use crate::registry::registry::{self, Registry};
 use crate::ChatArgs;
 
 pub(crate) struct MessageBuffer {
@@ -89,7 +90,7 @@ pub(crate) async fn chat_cmd(
     };
 
     if args.prompt.is_some() && !in_terminal {
-        die!("It appears that an initial prompt is being provided both through standard input and the prompt argument.");
+        die!("it appears that an initial prompt is being provided both through standard input and the prompt argument");
     }
 
     // Obtain the initial prompt, either from standard input or from a positional argument.
@@ -112,6 +113,14 @@ pub(crate) async fn chat_cmd(
     let (provider, model_id) = match resolve_result {
         Ok(resolved) => resolved,
         Err(err) => {
+            // When the default model is unset or a provider is not activate, this
+            // could be due to the complete absense of any provider. This is a more
+            // friendly error message, since the remediation action should be obvious
+            // to newcomers.
+            if registry.empty() {
+                die!("none of the chat providers are active, at least one needs to be active to start a chat");
+            }
+
             die!("failed to resolve model: {}", err);
         }
     };

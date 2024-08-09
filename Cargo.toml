@@ -9,7 +9,6 @@ license = "MIT OR GPL-2.0"
 async-trait = "0.1.80"
 bytes = "1.6.0"
 clap = { version = "4.5.9", features = ["derive"] }
-die = "0.2.0"
 futures-core = "0.3.30"
 futures-util = "0.3.30"
 lazy_static = "1.4.0"

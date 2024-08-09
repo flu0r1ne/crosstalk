@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod providers;
 mod registry;
+mod utils;
 
 use std::path::PathBuf;
 
@@ -100,11 +101,29 @@ pub(crate) struct ListModelArgs {
     provider: Option<ProviderIdentifier>,
 }
 
+fn hook_panics_with_reporting() {
+    let default_hook = std::panic::take_hook();
+
+    std::panic::set_hook(Box::new(move |info| {
+        default_hook(info);
+
+        eprintln!("");
+        eprintln!("It seems you may have encountered a bug. If you believe something is not functioning correctly, we would greatly appreciate your help in reporting it. If you're using an older version, please consider updating to the latest release.");
+        eprintln!("");
+        eprintln!("As of this release, you can submit bug reports through the GitHub issue tracker, though this process may change in the future.");
+        eprintln!("See: https://github.com/flu0r1ne/crosstalk/issues/new?labels=bug&projects=&template=bug_report.md&title=Encountered%20a%20panic");
+    }));
+}
+
 #[tokio::main]
 async fn main() {
+    hook_panics_with_reporting();
+
     let cli = Cli::parse();
 
     let color = ColorMode::resolve_auto(cli.color);
+
+    utils::errors::configure_color(color);
 
     let config = read_config(cli.config);
 

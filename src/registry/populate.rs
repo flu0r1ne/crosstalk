@@ -1,9 +1,9 @@
 use std::env::VarError;
 
-use die::die;
+use crate::die;
 
 use super::registry::{Error, ModelResolver, ModelSpec, Registry};
-use crate::config::{Config, RequestedProviderActivation};
+use crate::config::{Config, ProviderActivationPolicy};
 use crate::providers::providers::{OllamaProvider, OpenAIProvider};
 use crate::providers::{ChatProvider, ErrorKind};
 
@@ -30,7 +30,7 @@ fn openai_api_key() -> Option<String> {
     match std::env::var(OPENAI_ENV_KEY_VAR) {
         Ok(api_key) => Some(api_key),
         Err(err) => match err {
-            VarError::NotUnicode(_) => die::die!("error: failed to parse {}", OPENAI_ENV_KEY_VAR),
+            VarError::NotUnicode(_) => die!("failed to parse {}", OPENAI_ENV_KEY_VAR),
             VarError::NotPresent => None,
         },
     }
@@ -44,21 +44,21 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
         let ollama = &config.providers.ollama;
 
         let provider = match ollama.activate {
-            RequestedProviderActivation::Auto | RequestedProviderActivation::Yes => {
+            ProviderActivationPolicy::Auto | ProviderActivationPolicy::Enabled => {
                 if let Some(api_base) = &ollama.api_base {
                     match OllamaProvider::with_api_base(api_base) {
                         Ok(ollama) => Some(ollama),
-                        Err(err) => die::die!("ollama API base failed to parse: {}", err),
+                        Err(err) => die!("ollama API base failed to parse: {}", err),
                     }
                 } else {
                     Some(OllamaProvider::new())
                 }
             }
-            RequestedProviderActivation::No => None,
+            ProviderActivationPolicy::Disabled => None,
         };
 
         match (provider, ollama.activate) {
-            (Some(provider), RequestedProviderActivation::Auto)
+            (Some(provider), ProviderActivationPolicy::Auto)
                 if ollama_is_awake(&provider).await =>
             {
                 registry.add_provider(
@@ -67,7 +67,7 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
                     ollama.default_model.clone(),
                 );
             }
-            (Some(provider), RequestedProviderActivation::Yes) => {
+            (Some(provider), ProviderActivationPolicy::Enabled) => {
                 registry.add_provider(
                     Box::new(provider),
                     ollama.priority,
@@ -91,18 +91,18 @@ pub(crate) async fn populated_registry(config: &Config) -> Registry {
         };
 
         let activated = match openai.activate {
-            RequestedProviderActivation::Auto => {
+            ProviderActivationPolicy::Auto => {
                 // Activate if API key is present
                 api_key
             }
-            RequestedProviderActivation::Yes => {
+            ProviderActivationPolicy::Enabled => {
                 if api_key.is_none() {
-                    die::die!("the \"openai\" provider is activated but the API key is not defined, either add it to the config or define {}", OPENAI_ENV_KEY_VAR);
+                    die!("the \"openai\" provider is activated but the API key is not defined, either add it to the config or define {}", OPENAI_ENV_KEY_VAR);
                 }
 
                 api_key
             }
-            RequestedProviderActivation::No => None,
+            ProviderActivationPolicy::Disabled => None,
         };
 
         if let Some(api_key) = activated {

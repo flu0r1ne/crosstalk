@@ -164,7 +164,6 @@ Crosstalk currently uses Emacs-style keybindings for text manipulation. Although
 | End        | Move to the end of the line       |
 | C-l        | Clear the screen                  |
 | Tab        | Perform tab completion            |
-| C-i        | Insert a Tab                                         |
 | C-k        | Remove text from the cursor to the end of the line   |
 | C-u        | Remove text from the cursor to the start of the line |
 

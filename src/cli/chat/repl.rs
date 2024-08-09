@@ -10,7 +10,7 @@ use reedline::{
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, EditCommand, MenuBuilder, Reedline, Signal};
 
-use die::die;
+use crate::die;
 use nu_ansi_term::{Color, Style};
 
 use super::tempfile::Tempfile;

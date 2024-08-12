@@ -293,10 +293,6 @@ default_model = 'gpt-4o'
 
 In the above example, `ollama/llama:7b` would be the default model unless ollama became unavailable. (E.g. the client was not running, meaning that the activation criteria are not met.) In this case, `openai/gpt-4o` would be the default model.
 
-### Configuration
-
-
-
 ### Composability
 
 Crosstalk respects pipes and redirects, so you can use it in combination with other command-line tools:
@@ -330,6 +326,66 @@ This code creates a vector of numbers, calculates the sum of the numbers using t
 ```
 
 If `xtalk` detects the `stdin` or `stdout` are redirected, it will operate in one-shot mode. The prompt is the first message in the conversation and the model will preform a single completion before exiting.
+
+## Configuration
+
+Configuration information is stored in a TOML file. The following paths are searched for the configuration file. The first available file is used:
+
+- `~/.config/xtalk/config.toml`
+- `~/.xtalk.toml`
+- `/etc/xtalk.toml`
+
+If any option is left unspecified in the configuration, a reasonable default is chosen.
+
+### Example configuration:
+```toml
+# Specifies the command used to launch an external editor.
+# This should specify a binary to be used as the external editor. It can either be
+# an absolute path to a binary or a command in the PATH environment variable.
+# It should accept a file as the first argument. If the editor exits with a zero status,
+# the content in the file will be used for a prompt.
+editor = "vim"
+
+# Specifies the default model.
+# It should be set in the form of a model spec, such as "gpt-4o-mini".
+default_model = "gpt-4o-mini"
+
+# Specifies the keybindings to be used within the chat REPL.
+# Acceptable values are "vi" or "emacs". By default, Emacs-style bindings are used.
+keybindings = "emacs"
+
+# Configuration for the providers.
+[providers]
+[providers.ollama]
+# The activation policy for Ollama.
+# Acceptable values are "auto", "enabled", or "disabled".
+activate = "auto"
+
+# Specifies the default model to be used when Ollama is the preferred provider.
+default_model = "llama2:7b"
+
+# Specifies the base URL for the Ollama API.
+api_base = "http://localhost:11434"
+
+# Sets the priority for the Ollama provider.
+priority = 15
+
+[providers.openai]
+# The activation policy for OpenAI.
+# Acceptable values are "auto", "enabled", or "disabled".
+activate = "auto"
+
+# Specifies the default model to be used when OpenAI is the preferred provider.
+default_model = "gpt-4"
+
+# Sets the OpenAI API key.
+# This takes precedence over the OPENAI_API_KEY environment variable, if set.
+api_key = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Sets the priority for the OpenAI provider.
+priority = 10
+```
+
 ### Main Configuration Options
 
 The main configuration structure includes settings for the external editor, default model, keybindings, and provider configurations.

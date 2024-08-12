@@ -30,7 +30,7 @@ pub(crate) enum RequestedColorMode {
 #[command(
     about = "A general-purpose CLI for chat models",
     author = "Alex <alex@al.exander.io>",
-    version = "0.0.1-alpha.0"
+    version = "0.0.1-alpha.2"
 )]
 struct Cli {
     #[arg(long, default_value_t = RequestedColorMode::default())]

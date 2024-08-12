@@ -295,11 +295,7 @@ In the above example, `ollama/llama:7b` would be the default model unless ollama
 
 ### Configuration
 
-Configuration information is stored in a TOML file. The following paths are searched for the configuration file. The first available file is used:
 
-- `~/.config/xtalk/config.toml`
-- `~/.xtalk.toml`
-- `/etc/xtalk.toml`
 
 ### Composability
 
@@ -334,6 +330,91 @@ This code creates a vector of numbers, calculates the sum of the numbers using t
 ```
 
 If `xtalk` detects the `stdin` or `stdout` are redirected, it will operate in one-shot mode. The prompt is the first message in the conversation and the model will preform a single completion before exiting.
+### Main Configuration Options
+
+The main configuration structure includes settings for the external editor, default model, keybindings, and provider configurations.
+
+#### Editor
+- **Description**: Specifies the command used to launch an external editor.
+- **Type**: `String`
+- **Default**: See the external editor section above.
+- **Example**:
+  ```toml
+  editor = "vim"
+  ```
+
+#### Default Model
+- **Description**: Specifies the default chat model and overrides defaults specified by other providers.
+- **Type**: `String`, must be a model spec
+- **Example**:
+  ```toml
+  default_model = "gpt-4o-mini"
+  ```
+
+#### Keybindings
+- **Description**: Specifies the keybindings to be used within the chat REPL.
+- **Type**: `String` (can be "emacs" or "vi")
+- **Default**: `emacs`
+- **Example**:
+  ```toml
+  keybindings = "emacs"
+  ```
+
+### Provider Configuration
+
+Provider settings are nested under the `[providers]` section. Each provider, such as Ollama and OpenAI, has its own configuration settings.
+
+#### Ollama Provider
+- **Section**: `[providers.ollama]`
+- **Fields**:
+  - `activate`
+    - **Description**: The activation policy for Ollama.
+    - **Type**: `String` (can be "auto", "enabled", or "disabled")
+    - **Default**: `auto`
+  - `default_model`
+    - **Description**: Specifies the default model to be used when Ollama is the preferred provider.
+    - **Type**: `String`
+  - `api_base`
+    - **Description**: Specifies the base URL for the Ollama API.
+    - **Type**: `String`
+  - `priority`
+    - **Description**: Sets the priority for the Ollama provider.
+    - **Type**: `Integer`
+    - **Default**: `15`
+- **Example**:
+  ```toml
+  [providers.ollama]
+    activate = "auto"
+    default_model = "llama:7b"
+    api_base = "http://localhost:11434"
+    priority = 15
+  ```
+
+#### OpenAI Provider
+- **Section**: `[providers.openai]`
+- **Fields**:
+  - `activate`
+    - **Description**: The activation policy for OpenAI.
+    - **Type**: `String` (can be "auto", "enabled", or "disabled")
+    - **Default**: `auto`
+  - `default_model`
+    - **Description**: Specifies the default model to be used when OpenAI is the preferred provider.
+    - **Type**: `String`
+  - `api_key`
+    - **Description**: Sets the OpenAI API key. This takes precedence over the OPENAI_API_KEY environment variable, if set.
+    - **Type**: `String`
+  - `priority`
+    - **Description**: Sets the priority for the OpenAI provider.
+    - **Type**: `Integer`
+    - **Default**: `10`
+- **Example**:
+  ```toml
+  [providers.openai]
+    activate = "auto"
+    default_model = "gpt-4"
+    api_key = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    priority = 10
+  ```
 
 Roadmap
 -------
@@ -342,30 +423,17 @@ I believe there is a lot of improvement to be made in in-place file editing. E.g
 
 This is a rough plan for the first release. Items on this list may be reordered or reinvisioned:
 
-- `0.0.1-alpha.1`
-    + List package on crates.io
-    + Documention updates:
-        - More detailed configuration documentation
-        - Detail how to get started with each provider
-- `0.0.1-alpha.2`
-    + Adjust REPL prompt to use ASCII characters by default
-    + Color code errors and warnings, create a consistant framework
-    for handling errors and warnings
-    + Add issue reporting to panics if possible
 - `0.0.1-alpha.3`
-    + Gracefully handle non-fatal errors in the REPL
-    + Save warnings / errors to the buffer history
-- `0.0.1-alpha.4`
     + Add `/model` command to the REPL which allows the user to change
     the active model
     + Allow REPLs to be launched without a default model
-- `0.0.1-alpha.5`
+- `0.0.1-alpha.4`
     + Use Control-C to cancel model output
-- `0.0.1-alpha.6`
+- `0.0.1-alpha.5`
     + Add syntax highlighting
-- `0.0.1-alpha.7`
+- `0.0.1-alpha.6`
     + Automatically check for updates, alert users when critical updates occur
-- `0.0.1-alpha.8`
+- `0.0.1-alpha.7`
     + Add the ability to save and load chat dialogs
 - `0.0.1-beta.1`
     + Cross-platform testing

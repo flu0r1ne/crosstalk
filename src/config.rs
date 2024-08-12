@@ -5,56 +5,106 @@ use std::default;
 use std::path::PathBuf;
 use toml;
 
+/// Specifies when the provider should activate.
 #[derive(Deserialize, Serialize, Default, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum ProviderActivationPolicy {
+    /// Automatically determine if the provider should be considered active (default).
     #[default]
     Auto,
+    /// Enforce activation of the provider, returning an error if the activation criteria cannot be met.
     Enabled,
+    /// Enforce deactivation of the provider.
     Disabled,
 }
 
+/// Specifies the keybindings to be used in the chat REPL.
 #[derive(Deserialize, Serialize, Default, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Keybindings {
+    /// Use Emacs-style keybindings (default).
     #[default]
     Emacs,
+    /// Use Vi-style keybindings.
     Vi,
 }
 
+/// Configuration for the Ollama provider.
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Ollama {
+    /// The activation policy for Ollama.
+    ///
+    /// If Ollama is always available, setting this to "enabled"
+    /// will eliminate a redundant API call to the Ollama server made
+    /// at system startup.
     #[serde(default)]
     pub activate: ProviderActivationPolicy,
+
+    /// Specifies the default model to be used when Ollama is the preferred provider.
     pub default_model: Option<String>,
+
+    /// Specifies the base URL for the Ollama API.
     pub api_base: Option<String>,
+
+    /// Sets the priority for the Ollama provider.
     pub priority: Option<u8>,
 }
 
+/// Configuration for the OpenAI provider.
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct OpenAI {
+    /// The activation policy for OpenAI.
     #[serde(default)]
     pub activate: ProviderActivationPolicy,
+
+    /// Specifies the default model to be used when OpenAI is the preferred provider.
     pub default_model: Option<String>,
+
+    /// Sets the OpenAI API key. This takes precedence over the OPENAI_API_KEY environment variable, if set.
     pub api_key: Option<String>,
+
+    /// Sets the priority for the OpenAI provider.
     pub priority: Option<u8>,
 }
 
+/// Configuration for the providers.
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Providers {
+    /// Configuration for the Ollama provider.
     #[serde(default)]
     pub ollama: Ollama,
+
+    /// Configuration for the OpenAI provider.
     #[serde(default)]
     pub openai: OpenAI,
 }
 
+/// Main configuration structure.
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub(crate) struct Config {
-    /// This specifies the editor command used when launching an external editor.
+    /// Specifies the command used to launch an external editor.
+    ///
+    /// This should specify a binary to be used as the external editor. It
+    /// can either be an absolute path to a binary or a command in the PATH
+    /// environment variable. It should accept a file as the first argument.
+    /// If the editor exits with a zero status, the content in the file will
+    /// be used for a prompt.
     pub editor: Option<String>,
+
+    /// Specifies the default model.
+    ///
+    /// This sets the default chat model and overrides defaults specified by
+    /// other providers. It should be set in the form of a model spec.
     pub default_model: Option<String>,
+
+    /// Specifies the keybindings to be used within the chat REPL.
+    ///
+    /// Acceptable values are "vi" or "emacs". By default, Emacs-style
+    /// bindings are used.
     #[serde(default)]
     pub keybindings: Keybindings,
+
+    /// Configuration for the providers.
     #[serde(default)]
     pub providers: Providers,
 }

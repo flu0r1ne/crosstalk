@@ -1,6 +1,7 @@
 use crate::die;
 use crate::warn;
 use serde::{Deserialize, Serialize};
+use std::default;
 use std::path::PathBuf;
 use toml;
 
@@ -11,6 +12,14 @@ pub(crate) enum ProviderActivationPolicy {
     Auto,
     Enabled,
     Disabled,
+}
+
+#[derive(Deserialize, Serialize, Default, Clone, Copy, Debug)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Keybindings {
+    #[default]
+    Emacs,
+    Vi,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
@@ -44,6 +53,8 @@ pub(crate) struct Config {
     /// This specifies the editor command used when launching an external editor.
     pub editor: Option<String>,
     pub default_model: Option<String>,
+    #[serde(default)]
+    pub keybindings: Keybindings,
     #[serde(default)]
     pub providers: Providers,
 }

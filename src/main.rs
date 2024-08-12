@@ -1,5 +1,6 @@
 mod chat;
 mod cli;
+mod color;
 mod config;
 mod providers;
 mod registry;
@@ -123,7 +124,7 @@ async fn main() {
 
     let color = ColorMode::resolve_auto(cli.color);
 
-    utils::errors::configure_color(color);
+    color::configure_color(color);
 
     let config = read_config(cli.config);
 
@@ -132,8 +133,26 @@ async fn main() {
     let editor: Option<PathBuf> = config.editor.map(|s| s.into());
 
     match &cli.command {
-        Some(Commands::Chat(args)) => chat_cmd(editor, config.default_model, registry, args).await,
+        Some(Commands::Chat(args)) => {
+            chat_cmd(
+                editor,
+                config.keybindings,
+                config.default_model,
+                registry,
+                args,
+            )
+            .await
+        }
         Some(Commands::List(args)) => list_cmd(color, registry, args).await,
-        None => chat_cmd(editor, config.default_model, registry, &ChatArgs::default()).await,
+        None => {
+            chat_cmd(
+                editor,
+                config.keybindings,
+                config.default_model,
+                registry,
+                &ChatArgs::default(),
+            )
+            .await
+        }
     }
 }

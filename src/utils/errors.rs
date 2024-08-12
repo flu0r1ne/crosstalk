@@ -1,55 +1,43 @@
-use crate::cli::ColorMode;
-use nu_ansi_term::Color;
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::color::{self, MaybePaint};
 
 pub const DEFAULT_EXIT_CODE: i32 = 1;
 
-static mut USE_COLOR: AtomicBool = AtomicBool::new(true);
+pub(crate) fn fmt_error<S: AsRef<str>>(f: &mut std::fmt::Formatter, text: S) -> std::fmt::Result {
+    let text: &str = text.as_ref();
 
-pub(crate) fn configure_color(cmode: ColorMode) {
-    match cmode {
-        ColorMode::On => unsafe {
-            USE_COLOR.store(true, Ordering::Relaxed);
-        },
-        ColorMode::Off => unsafe {
-            USE_COLOR.store(false, Ordering::Relaxed);
-        },
-    }
+    write!(
+        f,
+        "{} {}",
+        color::ERROR_INDICATOR.maybe_paint("error:"),
+        color::WARNING_TEXT.maybe_paint(text),
+    )
 }
 
-fn use_color() -> ColorMode {
-    match unsafe { USE_COLOR.load(Ordering::Relaxed) } {
-        true => ColorMode::On,
-        false => ColorMode::Off,
-    }
+pub(crate) fn fmt_warn<S: AsRef<str>>(f: &mut std::fmt::Formatter, text: &str) -> std::fmt::Result {
+    let text: &str = text.as_ref();
+
+    write!(
+        f,
+        "{} {}",
+        color::WARNING_INDICATOR.maybe_paint("warning:"),
+        color::WARNING_TEXT.maybe_paint(text),
+    )
 }
 
 pub(crate) fn error_internal(text: &str) {
-    match use_color() {
-        ColorMode::On => {
-            let style = Color::Red.bold();
-            let text_style = Color::Default.bold();
-
-            eprintln!("{} {}", style.paint("error:"), text_style.paint(text));
-        }
-        ColorMode::Off => {
-            eprintln!("error: {}", text);
-        }
-    }
+    eprintln!(
+        "{} {}",
+        color::ERROR_INDICATOR.maybe_paint("error:"),
+        color::WARNING_TEXT.maybe_paint(text),
+    );
 }
 
 pub(crate) fn warn_internal(text: &str) {
-    match use_color() {
-        ColorMode::On => {
-            let style = Color::Yellow.bold();
-            let text_style = Color::Default.bold();
-
-            eprintln!("{} {}", style.paint("warning:"), text_style.paint(text));
-        }
-        ColorMode::Off => {
-            eprintln!("warning: {}", text);
-        }
-    }
+    eprintln!(
+        "{} {}",
+        color::WARNING_INDICATOR.maybe_paint("warning:"),
+        color::WARNING_TEXT.maybe_paint(text),
+    );
 }
 
 #[macro_export]

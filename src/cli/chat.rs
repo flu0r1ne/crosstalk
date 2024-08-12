@@ -1,18 +1,94 @@
+mod highlighter;
+mod prompt;
 mod repl;
 mod tempfile;
 
-use crate::die;
+use crate::utils::errors::{fmt_error, fmt_warn};
+use crate::{chat, die};
 
+use core::fmt;
+use std::error::Error;
+use std::fs::write;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::PathBuf;
 
 use self::repl::Repl;
 
-use crate::chat::{Message, Role};
-use crate::providers::{ChatProvider, MessageDelta};
+use crate::chat::Role;
+use crate::config;
+use crate::providers::{ChatProvider, ContextManagement, MessageDelta};
 use crate::registry::populate::resolve_once;
-use crate::registry::registry::{self, Registry};
+use crate::registry::registry::{self, ModelSpec, Registry};
 use crate::ChatArgs;
+use nu_ansi_term::Color;
+use prompt::{model_prompt, user_prompt};
+
+pub(crate) enum Severity {
+    Error,
+    Warn,
+    Standard,
+}
+
+pub(crate) enum Message {
+    Chat(chat::Message, Option<String>),
+    Command(String),
+    Output(Severity, String),
+}
+
+impl Message {
+    pub(crate) fn warn(msg: String) -> Message {
+        Message::Output(Severity::Warn, msg)
+    }
+
+    pub(crate) fn error(msg: String) -> Message {
+        Message::Output(Severity::Error, msg)
+    }
+
+    pub(crate) fn output(msg: String) -> Message {
+        Message::Output(Severity::Standard, msg)
+    }
+
+    pub(crate) fn command(msg: String) -> Message {
+        Message::Command(msg)
+    }
+
+    pub(crate) fn user(msg: String) -> Message {
+        Message::Chat(chat::Message::new(Role::User, msg), None)
+    }
+
+    pub(crate) fn model(msg: String, model_id: String) -> Message {
+        Message::Chat(chat::Message::new(Role::Model, msg), Some(model_id))
+    }
+
+    pub(crate) fn system(msg: String) -> Message {
+        Message::Chat(chat::Message::new(Role::System, msg), None)
+    }
+}
+
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::Chat(message, model_id) => match &message.role {
+                Role::User => write!(f, "{}{}", user_prompt(), message.content),
+                Role::System => Ok(()),
+                Role::Model => write!(
+                    f,
+                    "{}{}",
+                    model_prompt(model_id.as_ref().unwrap()),
+                    message.content
+                ),
+            },
+            Message::Command(command) => {
+                write!(f, "{}{}", user_prompt(), command)
+            }
+            Message::Output(severity, msg) => match severity {
+                Severity::Warn => fmt_warn::<&str>(f, msg),
+                Severity::Error => fmt_error::<&str>(f, msg),
+                Severity::Standard => write!(f, "{}", msg),
+            },
+        }
+    }
+}
 
 pub(crate) struct MessageBuffer {
     buf: Vec<Message>,
@@ -29,11 +105,13 @@ impl MessageBuffer {
         self.buf.push(msg);
     }
 
-    pub(crate) fn public_messages(&self) -> Vec<Message> {
+    pub(crate) fn chat_messages(&self) -> Vec<chat::Message> {
         self.buf
             .iter()
-            .filter(|x| !matches!((*x).role, Role::Info))
-            .cloned()
+            .filter_map(|msg| match msg {
+                Message::Chat(msg, _) => Some(msg.clone()),
+                _ => None,
+            })
             .collect()
     }
 
@@ -43,7 +121,7 @@ impl MessageBuffer {
 }
 
 pub(crate) struct MessageBuilder {
-    msg: Option<Message>,
+    msg: Option<chat::Message>,
 }
 
 impl MessageBuilder {
@@ -55,12 +133,12 @@ impl MessageBuilder {
         if let Some(msg) = &mut self.msg {
             msg.content.push_str(&delta.content);
         } else {
-            self.msg = Some(Message::new(Role::User, delta.content.clone()));
+            self.msg = Some(chat::Message::new(Role::User, delta.content.clone()));
         }
     }
 }
 
-impl TryFrom<MessageBuilder> for Message {
+impl TryFrom<MessageBuilder> for chat::Message {
     type Error = ();
 
     fn try_from(value: MessageBuilder) -> Result<Self, Self::Error> {
@@ -74,6 +152,7 @@ impl TryFrom<MessageBuilder> for Message {
 
 pub(crate) async fn chat_cmd(
     editor: Option<PathBuf>,
+    keybindings: config::Keybindings,
     default_model: Option<String>,
     registry: Registry,
     args: &ChatArgs,
@@ -130,6 +209,7 @@ pub(crate) async fn chat_cmd(
 
     chat(
         editor,
+        keybindings,
         provider,
         &model_id,
         initial_prompt,
@@ -141,6 +221,7 @@ pub(crate) async fn chat_cmd(
 
 async fn chat<'p>(
     editor: Option<PathBuf>,
+    keybindings: config::Keybindings,
     provider: &'p Box<dyn ChatProvider>,
     model_id: &str,
     initial_prompt: Option<String>,
@@ -149,16 +230,31 @@ async fn chat<'p>(
 ) {
     let mut pending_init_prompt = initial_prompt.is_some();
 
+    let spec = ModelSpec::resolved(provider.id(), model_id.to_string());
+
     // Add the initial prompt to the internal buffer.
     let mut msg_buf = MessageBuffer::new();
 
+    match provider.context_management() {
+        ContextManagement::Implicit => {
+            let implicit_warning = Message::warn(
+                "This provider implicity manages context. The context may be truncated without warning.".to_string()
+            );
+
+            eprintln!("{}", implicit_warning);
+
+            msg_buf.add_message(implicit_warning);
+        }
+        ContextManagement::Explicit => {}
+    }
+
     if let Some(initial_prompt) = initial_prompt {
-        msg_buf.add_message(Message::new(Role::User, initial_prompt));
+        msg_buf.add_message(Message::user(initial_prompt));
     }
 
     // Only initialize the REPL if  it is really needed.
     let mut repl = if interactive {
-        Some(Repl::new(editor))
+        Some(Repl::new(editor, keybindings))
     } else {
         None
     };
@@ -176,24 +272,42 @@ async fn chat<'p>(
 
             let prompt = repl.edit(&mut msg_buf);
 
-            if prompt.is_none() {
-                break;
-            }
+            let prompt = match prompt {
+                Some(prompt) => prompt,
+                None => break,
+            };
 
-            let prompt = prompt.unwrap();
-
-            msg_buf.add_message(Message::new(Role::User, prompt));
+            msg_buf.add_message(Message::user(prompt));
         }
 
-        let mut completion = provider
-            .stream_completion(&model_id, &msg_buf.public_messages())
-            .await
-            .expect("Completion failed.");
+        let completion = provider
+            .stream_completion(&model_id, &msg_buf.chat_messages())
+            .await;
+
+        let mut completion = match completion {
+            Ok(completion) => completion,
+            Err(err) => {
+                let mut err_msg = format!("completion for {} failed: {}", spec, err);
+
+                if let Some(source) = err.source() {
+                    err_msg.push_str(&format!("\n{}", source));
+                }
+
+                let completion_error = Message::error(err_msg);
+
+                eprintln!("{}", completion_error);
+
+                msg_buf.add_message(completion_error);
+
+                continue;
+            }
+        };
 
         let mut msg_builder = MessageBuilder::new();
 
         if interactive {
-            print!("[{}] ", model_id);
+            let model_prompt = model_prompt(model_id);
+            print!("{} ", model_prompt);
             flush_or_die();
         }
 
@@ -207,11 +321,11 @@ async fn chat<'p>(
 
                     msg_builder.add(&delta);
                 }
-                Err(err) => panic!("Failed to decode streaming response: {}", err),
+                Err(err) => panic!("failed to decode streaming response: {}", err),
             }
         }
 
-        let msg: Message = msg_builder.try_into().unwrap();
+        let msg: chat::Message = msg_builder.try_into().unwrap();
 
         if incremental {
             println!("\n");

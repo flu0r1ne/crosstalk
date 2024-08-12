@@ -1,6 +1,7 @@
 use super::default_priority::default_priority;
 
 use crate::providers::{self, providers::ProviderIdentifier, ChatProvider, Model};
+use core::fmt;
 use std::collections::HashMap;
 use std::default;
 use std::str::FromStr;
@@ -22,12 +23,10 @@ pub(crate) enum Error {
     #[error("none of the available providers provide a default model")]
     DefaultModelUnset,
     /// Failed to list the models from one of the providers in the registry
-    #[error("failed to obtain models from provider: \"{0}\"")]
-    ModelListingFailed(
-        #[from]
-        #[source]
-        providers::Error,
-    ),
+    #[error("failed to obtain models from provider \"{0}\": \"{1}\"")]
+    ModelListingFailed(ProviderIdentifier, #[source] providers::Error),
+    #[error("failed to obtain the default model for provider \"{0}\": \"{1}\"")]
+    DefaultModelFailed(ProviderIdentifier, #[source] providers::Error),
 }
 
 #[derive(Default)]
@@ -36,8 +35,22 @@ pub(crate) struct ModelSpec {
     pub model: Option<String>,
 }
 
+impl fmt::Display for ModelSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.model.is_none() {
+            return write!(f, "default_model");
+        }
+
+        if let Some(provider) = self.provider {
+            write!(f, "{}/", provider)?;
+        }
+
+        write!(f, "{}", self.model.as_ref().unwrap())
+    }
+}
+
 impl ModelSpec {
-    fn resolved(provider: ProviderIdentifier, model: String) -> ModelSpec {
+    pub(crate) fn resolved(provider: ProviderIdentifier, model: String) -> ModelSpec {
         ModelSpec {
             provider: Some(provider),
             model: Some(model),
@@ -216,7 +229,12 @@ impl Registry {
                 None => continue,
             };
 
-            for model in provider.models().await? {
+            let provider_models = provider
+                .models()
+                .await
+                .map_err(|e| Error::ModelListingFailed(id, e))?;
+
+            for model in provider_models {
                 models.push(ProvidedModel {
                     provider: id,
                     model: model,
@@ -243,7 +261,11 @@ impl Registry {
             };
 
             let default_model = if default_model.is_none() {
-                provider.default_model().await?.map(|model| model.id)
+                provider
+                    .default_model()
+                    .await
+                    .map_err(|e| Error::DefaultModelFailed(id, e))?
+                    .map(|model| model.id)
             } else {
                 default_model.clone()
             };

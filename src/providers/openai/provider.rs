@@ -169,7 +169,6 @@ impl<S: Stream<Item = reqwest::Result<Bytes>> + Unpin + Send> AsyncMessageIterat
 impl From<Role> for api::Role {
     fn from(value: Role) -> Self {
         match value {
-            Role::Info => unimplemented!("info messages have no API corollary"),
             Role::Model => api::Role::Assistant,
             Role::System => api::Role::System,
             Role::User => api::Role::User,

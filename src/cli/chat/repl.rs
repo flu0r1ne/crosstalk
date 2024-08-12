@@ -5,14 +5,21 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use reedline::{
-    default_emacs_keybindings, ColumnarMenu, DefaultCompleter, Emacs, KeyCode, KeyModifiers,
-    ReedlineEvent, ReedlineMenu,
+    default_emacs_keybindings, ColumnarMenu, DefaultCompleter, EditMode, Emacs, KeyCode,
+    KeyModifiers, Keybindings, ReedlineEvent, ReedlineMenu,
 };
-use reedline::{DefaultPrompt, DefaultPromptSegment, EditCommand, MenuBuilder, Reedline, Signal};
+use reedline::{
+    default_vi_insert_keybindings, default_vi_normal_keybindings, DefaultPrompt,
+    DefaultPromptSegment, EditCommand, MenuBuilder, Reedline, Signal, Vi,
+};
 
+use crate::cli::chat::Message;
 use crate::die;
+use crate::{config, warn};
 use nu_ansi_term::{Color, Style};
 
+use super::highlighter::Highlighter;
+use super::prompt::{completion_marker, Prompt};
 use super::tempfile::Tempfile;
 use super::MessageBuffer;
 
@@ -53,9 +60,9 @@ fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> S
 
         if let Err(err) = temp_file.file_mut().seek(SeekFrom::Start(0)) {
             die!("failed to reset file cursor: {}", err);
-        }   
+        }
     }
-    
+
     // Launch the editor subprocess
     let status = Command::new(editor.clone()).arg(temp_file.path()).status();
 
@@ -89,19 +96,61 @@ fn read_from_interactive_editor(editor: &PathBuf, temp_file: &mut Tempfile) -> S
     edited_content
 }
 
+fn edit_mode(keybindings: config::Keybindings) -> Box<dyn EditMode> {
+    match keybindings {
+        config::Keybindings::Vi => {
+            let mut insert_bindings = default_vi_insert_keybindings();
+
+            insert_bindings.add_binding(
+                KeyModifiers::NONE,
+                KeyCode::Tab,
+                ReedlineEvent::UntilFound(vec![
+                    ReedlineEvent::Menu("completion_menu".to_string()),
+                    ReedlineEvent::MenuNext,
+                ]),
+            );
+
+            Box::new(Vi::new(insert_bindings, default_vi_normal_keybindings()))
+        }
+        config::Keybindings::Emacs => {
+            let mut keybindings = default_emacs_keybindings();
+
+            keybindings.add_binding(
+                KeyModifiers::NONE,
+                KeyCode::Tab,
+                ReedlineEvent::UntilFound(vec![
+                    ReedlineEvent::Menu("completion_menu".to_string()),
+                    ReedlineEvent::MenuNext,
+                ]),
+            );
+
+            keybindings.add_binding(
+                KeyModifiers::CONTROL,
+                KeyCode::Char('e'),
+                ReedlineEvent::OpenEditor,
+            );
+
+            keybindings.add_binding(
+                KeyModifiers::CONTROL,
+                KeyCode::Char('j'),
+                ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
+            );
+
+            Box::new(Emacs::new(keybindings))
+        }
+    }
+}
+
 pub(crate) struct Repl {
     line_editor: Reedline,
-    prompt: DefaultPrompt,
+    prompt: Prompt,
     tempfile: Tempfile,
     editor: Option<PathBuf>,
 }
 
 impl Repl {
-    pub(crate) fn new(editor: Option<PathBuf>) -> Repl {
-        let prompt = DefaultPrompt::new(
-            DefaultPromptSegment::Basic("[#]".to_string()),
-            DefaultPromptSegment::Empty,
-        );
+    pub(crate) fn new(editor: Option<PathBuf>, keybindings: config::Keybindings) -> Repl {
+        let prompt = Prompt::default();
 
         let tempfile =
             Tempfile::with_base_and_ext("msg", ".xtalk").expect("failed to create temporary file");
@@ -116,6 +165,7 @@ impl Repl {
         let completion_menu = Box::new(
             ColumnarMenu::default()
                 .with_name("completion_menu")
+                .with_marker(&completion_marker().to_string())
                 .with_text_style(Style::new().fg(Color::Default))
                 .with_selected_text_style(Style::new().fg(Color::Blue).on(Color::DarkGray))
                 .with_selected_match_text_style(
@@ -124,37 +174,15 @@ impl Repl {
         );
 
         // Set up the required keybindings
-        let mut keybindings = default_emacs_keybindings();
-
-        keybindings.add_binding(
-            KeyModifiers::NONE,
-            KeyCode::Tab,
-            ReedlineEvent::UntilFound(vec![
-                ReedlineEvent::Menu("completion_menu".to_string()),
-                ReedlineEvent::MenuNext,
-            ]),
-        );
-
-        keybindings.add_binding(
-            KeyModifiers::CONTROL,
-            KeyCode::Char('e'),
-            ReedlineEvent::OpenEditor,
-        );
-
-        keybindings.add_binding(
-            KeyModifiers::CONTROL,
-            KeyCode::Char('j'),
-            ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
-        );
-
-        let edit_mode = Box::new(Emacs::new(keybindings));
+        let edit_mode = edit_mode(keybindings);
 
         let editor = editor.or_else(|| resolve_fallback_editor());
 
         let line_editor = Reedline::create()
             .with_completer(completer)
             .with_menu(ReedlineMenu::EngineCompleter(completion_menu))
-            .with_edit_mode(edit_mode);
+            .with_edit_mode(edit_mode)
+            .with_highlighter(Box::new(Highlighter::default()));
 
         let line_editor = if let Some(editor) = &editor {
             line_editor.with_buffer_editor(Command::new(editor), tempfile.path_buf().clone())
@@ -176,13 +204,18 @@ impl Repl {
 
             match sig {
                 Ok(Signal::Success(command)) => {
+                    let command_msg = Message::command(command.clone());
+                    msg_buf.add_message(command_msg);
+
                     match command.as_str() {
                         "/exit" => break,
                         "/edit" => {
                             let editor = match self.editor.as_ref() {
                                 Some(editor) => editor,
                                 None => {
-                                    eprintln!("no editor specified");
+                                    let warning = Message::warn("no editor specified".to_string());
+                                    eprintln!("{}", warning);
+                                    msg_buf.add_message(warning);
                                     continue;
                                 }
                             };
@@ -204,8 +237,11 @@ impl Repl {
                         _ => return Some(command),
                     };
                 }
-                Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
+                Ok(Signal::CtrlD) => {
                     break;
+                }
+                Ok(Signal::CtrlC) => {
+                    continue;
                 }
                 _ => break,
             }

@@ -25,7 +25,6 @@ impl From<Role> for api::Role {
             Role::User => api::Role::User,
             Role::System => api::Role::System,
             Role::Model => api::Role::Assistant,
-            Role::Info => panic!("Role::Info is not an ollama role"),
         }
     }
 }

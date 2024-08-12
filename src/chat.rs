@@ -14,11 +14,6 @@ pub(crate) enum Role {
 
     /// A message authored by the model
     Model,
-
-    /// A message that is not included in the chat dialog. (That is, it
-    /// is never shown to the model.) `Info` messages are produced in
-    /// response to user commands.
-    Info,
 }
 
 /// A `Message` in a chat converstation

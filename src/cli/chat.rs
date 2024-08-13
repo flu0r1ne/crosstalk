@@ -4,11 +4,10 @@ mod repl;
 mod tempfile;
 
 use crate::utils::errors::{fmt_error, fmt_warn};
-use crate::{chat, die};
+use crate::{chat, die, version};
 
 use core::fmt;
 use std::error::Error;
-use std::fs::write;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::PathBuf;
 
@@ -20,8 +19,9 @@ use crate::providers::{ChatProvider, ContextManagement, MessageDelta};
 use crate::registry::populate::resolve_once;
 use crate::registry::registry::{self, ModelSpec, Registry};
 use crate::ChatArgs;
-use nu_ansi_term::Color;
 use prompt::{model_prompt, user_prompt};
+use tokio::{select, signal};
+
 
 pub(crate) enum Severity {
     Error,
@@ -228,6 +228,10 @@ async fn chat<'p>(
     interactive: bool,
     incremental: bool,
 ) {
+    if interactive {
+        println!("{} version {}", version::NAME, version::VERSION);
+    }
+
     let mut pending_init_prompt = initial_prompt.is_some();
 
     let spec = ModelSpec::resolved(provider.id(), model_id.to_string());
@@ -279,7 +283,7 @@ async fn chat<'p>(
 
             msg_buf.add_message(Message::user(prompt));
         }
-
+       
         let completion = provider
             .stream_completion(&model_id, &msg_buf.chat_messages())
             .await;
@@ -311,21 +315,39 @@ async fn chat<'p>(
             flush_or_die();
         }
 
-        while let Some(update) = completion.next().await {
-            match update {
-                Ok(delta) => {
-                    if incremental {
-                        print!("{}", delta.content);
-                        flush_or_die();
-                    }
+        let mut skip_response = false;
 
-                    msg_builder.add(&delta);
+        loop {
+            select! {
+                update = completion.next() => {
+                    let update = match update {
+                        Some(update) => update,
+                        None => break
+                    };
+
+                    match update {
+                        Ok(delta) => {
+                            if incremental {
+                                print!("{}", delta.content);
+                                flush_or_die();
+                            }
+        
+                            msg_builder.add(&delta);
+                        }
+                        Err(err) => panic!("failed to decode streaming response: {}", err),
+                    }
                 }
-                Err(err) => panic!("failed to decode streaming response: {}", err),
+                _ = signal::ctrl_c() => {
+                    skip_response = true;
+                    break;
+                } 
             }
         }
 
-        let msg: chat::Message = msg_builder.try_into().unwrap();
+        let msg: chat::Message = match msg_builder.try_into() {
+            Ok(msg) => msg,
+            Err(()) => continue,
+        };
 
         if incremental {
             println!("\n");
@@ -333,10 +355,14 @@ async fn chat<'p>(
             print!("{}", msg.content);
         }
 
+        if !skip_response {
+            msg_buf.add_message(Message::Chat(msg, Some(model_id.to_string())));
+        }
+
         if !interactive {
             break;
         }
-
+ 
         pending_init_prompt = false;
     }
 }

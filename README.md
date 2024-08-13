@@ -28,7 +28,7 @@ The `xtalk` alpha release only supports Linux.
 ## Installing with Cargo
 
 ```
-cargo install xtalk@0.0.1-alpha.2
+cargo install xtalk@0.0.1-alpha.3
 ```
 
 ### Building From Source

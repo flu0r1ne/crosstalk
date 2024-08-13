@@ -5,6 +5,7 @@ mod config;
 mod providers;
 mod registry;
 mod utils;
+mod version;
 
 use std::path::PathBuf;
 
@@ -26,11 +27,11 @@ pub(crate) enum RequestedColorMode {
 }
 
 #[derive(Parser)]
-#[command(name = "crosstalk")]
+#[command(name = version::NAME)]
 #[command(
     about = "A general-purpose CLI for chat models",
     author = "Alex <alex@al.exander.io>",
-    version = "0.0.1-alpha.2"
+    version = version::VERSION
 )]
 struct Cli {
     #[arg(long, default_value_t = RequestedColorMode::default())]
